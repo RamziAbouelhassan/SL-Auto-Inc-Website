@@ -1,0 +1,100 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #f4f4f4;
+    color: #333;
+    line-height: 1.8; /* Increased line height to make text easier to read */
+}
+
+/* Base container for width */
+.container {
+    width: 80%;
+    max-width: 1000px; /* Prevents it from getting too wide on huge monitors */
+    margin: auto;
+}
+
+header {
+    background: #222;
+    color: #fff;
+    padding: 50px 0; /* Added more space top and bottom */
+    border-bottom: #e8491d 4px solid;
+    text-align: center;
+}
+
+header h1 {
+    font-size: 3rem;
+    margin-bottom: 10px;
+}
+
+/* This fixes the section spacing! */
+section.container {
+    background: #fff;
+    margin: 40px auto; /* Adds a nice 40px gap BETWEEN the white boxes */
+    padding: 40px; /* Adds a 40px gap INSIDE the boxes so text isn't touching the edge */
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05); /* Softer shadow */
+}
+
+h2 {
+    color: #e8491d;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 15px;
+    margin-bottom: 25px; /* Pushes the text further down from the header */
+    font-size: 2rem;
+}
+
+p {
+    margin-bottom: 15px;
+}
+
+ul {
+    list-style: none;
+}
+
+/* Adds spacing and a subtle divider line between the list items */
+ul li {
+    padding: 12px 0;
+    border-bottom: 1px solid #f4f4f4; 
+}
+
+ul li:last-child {
+    border-bottom: none;
+}
+
+.grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px; /* Increased gap between the columns */
+}
+
+footer {
+    padding: 30px;
+    margin-top: 40px;
+    color: #ffffff;
+    background-color: #222;
+    text-align: center;
+}
+
+/* Button Styles */
+.btn {
+    display: inline-block;
+    background: #e8491d;
+    color: #ffffff;
+    padding: 12px 25px;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    margin-top: 25px;
+    border-radius: 5px;
+    transition: background 0.3s ease;
+}
+
+.btn:hover {
+    background: #cccccc;
+    color: #333;
+}
