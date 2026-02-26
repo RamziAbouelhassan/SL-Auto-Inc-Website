@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -6,12 +6,19 @@
     <title>SL Auto Inc | Auto Repair in McKenzie Towne, Calgary</title>
     <meta
       name="description"
-      content="SL Auto Inc — reliable auto repair in McKenzie Towne, Calgary. Oil changes, brakes, diagnostics, maintenance, and more."
+      content="SL Auto Inc - reliable auto repair in McKenzie Towne, Calgary. Diagnostics, brakes, maintenance, suspension, and everyday vehicle repair."
     />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <header class="header">
+      <div class="topbar">
+        <div class="container topbar-row">
+          <span>Local auto repair service for McKenzie Towne and SE Calgary</span>
+          <a href="tel:+15872283688">(587) 228-3688</a>
+        </div>
+      </div>
+
       <div class="container nav">
         <a class="brand" href="#top" aria-label="SL Auto Inc home">
           <span class="brand-mark">SL</span>
@@ -24,125 +31,281 @@
 
         <nav class="menu" id="menu">
           <a href="#services">Services</a>
+          <a href="#why-us">Why Us</a>
+          <a href="#process">Process</a>
           <a href="#hours">Hours</a>
           <a href="#contact">Contact</a>
         </nav>
 
-        <a class="call-btn" href="tel:+15872283688">Call: (587) 228-3688</a>
+        <a class="call-btn" href="tel:+15872283688">Book by phone</a>
       </div>
     </header>
 
     <main id="top">
       <section class="hero">
         <div class="container hero-grid">
-          <div>
-            <h1>Auto repair you can trust in SE Calgary</h1>
+          <div class="hero-copy">
+            <p class="eyebrow">SL Auto Inc | Full-Service Auto Shop</p>
+            <h1>Practical repairs and maintenance for the vehicles you rely on every day</h1>
             <p class="lead">
-              Honest diagnostics, fair pricing, and quality work. Convenient for McKenzie Towne and the surrounding
-              communities.
+              From check engine diagnostics to brake and suspension work, we focus on clear communication, fair
+              recommendations, and solid repair work that helps keep your vehicle on the road.
             </p>
 
             <div class="cta-row">
-              <a class="btn primary" href="tel:+15872283688">Call to book</a>
+              <a class="btn primary" href="tel:+15872283688">Call to book service</a>
               <a class="btn" href="#contact">Get directions</a>
             </div>
 
-            <div class="badges">
-              <div class="badge">
-                <div class="badge-title">Address</div>
-                <div class="badge-text">4400 Elgin Ave SE, Calgary, AB</div>
+            <div class="hero-tags" aria-label="Popular shop services">
+              <span class="tag">Engine light diagnostics</span>
+              <span class="tag">Brake inspections</span>
+              <span class="tag">Oil and filter service</span>
+              <span class="tag">Battery and charging issues</span>
+            </div>
+
+            <div class="stats" aria-label="Shop details">
+              <div class="stat">
+                <div class="stat-label">Address</div>
+                <div class="stat-value">4400 Elgin Ave SE, Calgary</div>
               </div>
-              <div class="badge">
-                <div class="badge-title">Phone</div>
-                <div class="badge-text">(587) 228-3688</div>
+              <div class="stat">
+                <div class="stat-label">Booking</div>
+                <div class="stat-value">Phone-first scheduling</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">Vehicle types</div>
+                <div class="stat-value">Cars, SUVs, light trucks</div>
               </div>
             </div>
           </div>
 
-          <div class="hero-card">
-            <h2>Quick services</h2>
+          <aside class="hero-card" aria-label="Service desk quick info">
+            <h2>Service desk</h2>
+            <p class="muted">Common reasons customers call us:</p>
             <ul class="checklist">
-              <li>Oil & filter</li>
-              <li>Brakes</li>
-              <li>Battery & charging</li>
-              <li>Diagnostics</li>
-              <li>Suspension</li>
-              <li>Maintenance</li>
+              <li>Warning light or drivability concern</li>
+              <li>Brake noise, vibration, or soft pedal</li>
+              <li>No-start, weak battery, charging issues</li>
+              <li>Steering pull, clunks, suspension noise</li>
+              <li>Routine maintenance and inspections</li>
+              <li>Pre-trip or seasonal vehicle checks</li>
             </ul>
-            <p class="small">
-              Not sure what you need? Call and describe the issue. We’ll tell you the next step.
+
+            <div class="hero-card-panel">
+              <div class="panel-title">Quick booking tip</div>
+              <p class="small">
+                Have your vehicle year, make, model, and a short description of the issue ready when you call. It helps
+                us point you to the best next step faster.
+              </p>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section" id="why-us">
+        <div class="container">
+          <div class="section-head">
+            <h2>Why local drivers choose SL Auto Inc</h2>
+            <p class="muted">
+              A straightforward auto shop experience focused on diagnostics, repair quality, and communication.
             </p>
+          </div>
+
+          <div class="feature-grid">
+            <article class="feature-card">
+              <h3>Clear repair recommendations</h3>
+              <p>We explain what was found, what should be addressed now, and what can be monitored.</p>
+            </article>
+
+            <article class="feature-card">
+              <h3>Maintenance-minded service</h3>
+              <p>Routine service and inspections help catch issues before they become bigger repairs.</p>
+            </article>
+
+            <article class="feature-card">
+              <h3>Real-world problem solving</h3>
+              <p>Noise, warning lights, hard starts, and handling concerns get a practical diagnostic approach.</p>
+            </article>
+
+            <article class="feature-card">
+              <h3>Convenient for SE Calgary</h3>
+              <p>Easy access for McKenzie Towne and nearby communities when you need everyday auto repair.</p>
+            </article>
           </div>
         </div>
       </section>
 
-      <section class="section" id="services">
+      <section class="section alt" id="services">
         <div class="container">
-          <h2>Services</h2>
-          <p class="muted">Common work we do. If it’s not listed, ask anyway.</p>
+          <div class="section-head">
+            <h2>Auto shop services</h2>
+            <p class="muted">
+              Common vehicle repairs and maintenance. If your issue is not listed here, call us and describe what your
+              car is doing.
+            </p>
+          </div>
 
           <div class="cards">
             <article class="card">
-              <h3>Oil changes</h3>
-              <p>Oil + filter with the right spec for your vehicle.</p>
+              <div class="card-kicker">Maintenance</div>
+              <h3>Oil changes and fluid service</h3>
+              <p>Oil and filter changes plus routine fluid checks based on your vehicle needs and driving conditions.</p>
             </article>
 
             <article class="card">
-              <h3>Brake service</h3>
-              <p>Pads, rotors, inspections, and brake noise diagnosis.</p>
+              <div class="card-kicker">Brakes</div>
+              <h3>Brake inspection and repair</h3>
+              <p>Pads, rotors, brake noise diagnosis, and brake system inspection for safe stopping performance.</p>
             </article>
 
             <article class="card">
-              <h3>Diagnostics</h3>
-              <p>Check engine light, drivability issues, electrical troubleshooting.</p>
+              <div class="card-kicker">Diagnostics</div>
+              <h3>Check engine light diagnosis</h3>
+              <p>Diagnostic scanning and troubleshooting for warning lights, misfires, rough running, and drivability concerns.</p>
             </article>
 
             <article class="card">
-              <h3>Suspension & steering</h3>
-              <p>Shocks/struts, bushings, ball joints, tie rods, and more.</p>
+              <div class="card-kicker">Electrical</div>
+              <h3>Battery and charging system</h3>
+              <p>Battery testing, charging system checks, and troubleshooting for no-start or low-voltage symptoms.</p>
             </article>
 
             <article class="card">
-              <h3>Battery & charging</h3>
-              <p>Battery testing, alternators, starters, and charging problems.</p>
+              <div class="card-kicker">Suspension</div>
+              <h3>Steering and suspension repair</h3>
+              <p>Clunks, looseness, and uneven handling concerns including front-end and suspension components.</p>
             </article>
 
             <article class="card">
-              <h3>Maintenance</h3>
-              <p>Fluids, filters, spark plugs, belts, and preventative service.</p>
+              <div class="card-kicker">Engine</div>
+              <h3>Cooling and belt service</h3>
+              <p>Cooling system checks, hoses, belts, and related maintenance that helps reduce breakdown risk.</p>
+            </article>
+
+            <article class="card">
+              <div class="card-kicker">Inspection</div>
+              <h3>Pre-purchase or trip checks</h3>
+              <p>Vehicle condition checks for road trips, seasonal driving, or before committing to a used vehicle.</p>
+            </article>
+
+            <article class="card">
+              <div class="card-kicker">General repair</div>
+              <h3>Noise and drivability concerns</h3>
+              <p>If something feels off, sounds off, or smells off, call us and we can help diagnose the issue.</p>
             </article>
           </div>
+
+          <div class="service-bands" aria-label="Shop focus areas">
+            <div class="band">
+              <strong>Seasonal driving prep:</strong> battery health, fluids, belts, brakes, and tire condition checks.
+            </div>
+            <div class="band">
+              <strong>Daily-driver reliability:</strong> maintenance-first recommendations to help avoid preventable repairs.
+            </div>
+            <div class="band">
+              <strong>Issue-first support:</strong> warning lights, noises, vibrations, and no-start concerns.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="process">
+        <div class="container process-grid">
+          <div>
+            <div class="section-head">
+              <h2>What to expect when you visit</h2>
+              <p class="muted">A simple repair process built around communication and practical next steps.</p>
+            </div>
+
+            <div class="steps">
+              <div class="step">
+                <span class="step-num">1</span>
+                <div>
+                  <h3>Call and describe the issue</h3>
+                  <p>Tell us what the vehicle is doing and whether there are warning lights, noises, or drivability symptoms.</p>
+                </div>
+              </div>
+
+              <div class="step">
+                <span class="step-num">2</span>
+                <div>
+                  <h3>Inspection and diagnosis</h3>
+                  <p>We inspect the vehicle, identify the likely cause, and explain what repairs or maintenance are recommended.</p>
+                </div>
+              </div>
+
+              <div class="step">
+                <span class="step-num">3</span>
+                <div>
+                  <h3>Approval before work proceeds</h3>
+                  <p>We review the next steps and proceed with the agreed service so you know what is being done.</p>
+                </div>
+              </div>
+
+              <div class="step">
+                <span class="step-num">4</span>
+                <div>
+                  <h3>Pickup and follow-up recommendations</h3>
+                  <p>We let you know what was completed and flag any maintenance items to keep an eye on next.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <aside class="appointment-card">
+            <h3>Before you call</h3>
+            <ul class="plain-list">
+              <li>Vehicle year, make, and model</li>
+              <li>Dashboard warning lights (if any)</li>
+              <li>When the issue happens (cold start, highway, braking, turning)</li>
+              <li>Recent repairs or maintenance</li>
+              <li>Best callback number</li>
+            </ul>
+            <a class="btn primary wide" href="tel:+15872283688">Call to book service</a>
+          </aside>
         </div>
       </section>
 
       <section class="section alt" id="hours">
         <div class="container">
-          <h2>Hours</h2>
-          <p class="muted">Hours can change. Call to confirm if you’re coming in same-day.</p>
-
-          <div class="hours">
-            <div class="hours-row"><span>Monday</span><span>10:00 AM – 7:00 PM</span></div>
-            <div class="hours-row"><span>Tuesday</span><span>10:00 AM – 7:00 PM</span></div>
-            <div class="hours-row"><span>Wednesday</span><span>10:00 AM – 7:00 PM</span></div>
-            <div class="hours-row"><span>Thursday</span><span>10:00 AM – 7:00 PM</span></div>
-            <div class="hours-row"><span>Friday</span><span>10:00 AM – 6:00 PM</span></div>
-            <div class="hours-row"><span>Saturday</span><span>Closed</span></div>
-            <div class="hours-row"><span>Sunday</span><span>9:00 AM – 5:00 PM</span></div>
+          <div class="section-head">
+            <h2>Hours</h2>
+            <p class="muted">Hours can change. Call ahead to confirm if you plan to come in the same day.</p>
           </div>
 
-          <p class="small note">
-            If these hours aren’t accurate, edit them in <code>index.html</code> under the “Hours” section.
-          </p>
+          <div class="hours-layout">
+            <div class="hours">
+              <div class="hours-row"><span>Monday</span><span>10:00 AM - 7:00 PM</span></div>
+              <div class="hours-row"><span>Tuesday</span><span>10:00 AM - 7:00 PM</span></div>
+              <div class="hours-row"><span>Wednesday</span><span>10:00 AM - 7:00 PM</span></div>
+              <div class="hours-row"><span>Thursday</span><span>10:00 AM - 7:00 PM</span></div>
+              <div class="hours-row"><span>Friday</span><span>10:00 AM - 6:00 PM</span></div>
+              <div class="hours-row"><span>Saturday</span><span>Closed</span></div>
+              <div class="hours-row"><span>Sunday</span><span>9:00 AM - 5:00 PM</span></div>
+            </div>
+
+            <aside class="hours-note-card">
+              <h3>Planning a visit</h3>
+              <p>
+                For diagnostic concerns, warning lights, or no-start issues, calling first helps us plan the right type
+                of appointment and reduce wait time.
+              </p>
+              <p class="small">
+                If these hours are not accurate, edit the "Hours" section in <code>index.html</code>.
+              </p>
+            </aside>
+          </div>
         </div>
       </section>
 
       <section class="section" id="contact">
         <div class="container contact-grid">
           <div>
-            <h2>Contact</h2>
-            <p class="muted">
-              Call to book or ask a question. For directions, use the map.
-            </p>
+            <div class="section-head">
+              <h2>Contact and directions</h2>
+              <p class="muted">Call to book service, ask a question, or confirm availability before heading over.</p>
+            </div>
 
             <div class="contact-box">
               <div class="contact-item">
@@ -153,6 +316,11 @@
               <div class="contact-item">
                 <div class="contact-label">Address</div>
                 <div class="contact-value">4400 Elgin Ave SE, Calgary, AB T2Z 4V8</div>
+              </div>
+
+              <div class="contact-item">
+                <div class="contact-label">Best for booking</div>
+                <div class="contact-value">Phone call with vehicle issue details</div>
               </div>
 
               <div class="cta-row">
@@ -168,9 +336,16 @@
               </div>
             </div>
 
-            <p class="small muted">
-              Want a contact form? It’s easy, but it needs a backend (or a form service) to actually send messages.
-            </p>
+            <div class="info-list">
+              <div class="info-item">
+                <h3>Helpful info to share</h3>
+                <p>Any warning lights, recent work, and when the issue started can speed up scheduling and diagnosis.</p>
+              </div>
+              <div class="info-item">
+                <h3>Need directions?</h3>
+                <p>Use the map or Google Maps link and call if you need to confirm access or current shop hours.</p>
+              </div>
+            </div>
           </div>
 
           <div class="map-wrap" aria-label="Map">
@@ -183,11 +358,23 @@
           </div>
         </div>
       </section>
+
+      <section class="section cta-band" aria-label="Final call to action">
+        <div class="container cta-band-row">
+          <div>
+            <h2>Need a quote or diagnosis?</h2>
+            <p>
+              Call SL Auto Inc and describe what your vehicle is doing. We can help you figure out the best next step.
+            </p>
+          </div>
+          <a class="btn primary large" href="tel:+15872283688">Call (587) 228-3688</a>
+        </div>
+      </section>
     </main>
 
     <footer class="footer">
       <div class="container footer-row">
-        <div>© <span id="year"></span> SL Auto Inc</div>
+        <div>&copy; <span id="year"></span> SL Auto Inc</div>
         <div class="small muted">McKenzie Towne / SE Calgary</div>
       </div>
     </footer>
