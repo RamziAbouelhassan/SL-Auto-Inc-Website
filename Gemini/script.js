@@ -1,6 +1,4 @@
-const yearEl = document.getElementById("year");
-if (yearEl) yearEl.textContent = new Date().getFullYear();
-
+// --- Mobile Menu ---
 const menuBtn = document.getElementById("menuBtn");
 const menu = document.getElementById("menu");
 
@@ -10,25 +8,46 @@ if (menuBtn && menu) {
     menuBtn.setAttribute("aria-expanded", String(isOpen));
   });
 
-  // Close menu after clicking a link (mobile)
   menu.querySelectorAll("a").forEach((a) => {
     a.addEventListener("click", () => {
+      // Allow external links (like booking.html) to navigate away
+      if (!a.href.includes('#')) {
+        return;
+      }
+      // For internal links, close the menu
       menu.classList.remove("open");
       menuBtn.setAttribute("aria-expanded", "false");
     });
   });
 }
 
-// This makes sure the HTML is fully loaded before the script runs
+// --- Footer Year ---
+const yearEl = document.getElementById("year");
+if (yearEl) yearEl.textContent = new Date().getFullYear();
+
+const footerYearEl = document.getElementById("footer-year");
+if (footerYearEl) footerYearEl.textContent = new Date().getFullYear();
+
+
+// --- Form Handling ---
 document.addEventListener("DOMContentLoaded", function() {
     
-    // Find the button using the class we gave it in the HTML
-    const bookButton = document.querySelector(".btn.primary");
+    const quoteForm = document.getElementById('quoteForm');
+    if (quoteForm) {
+        quoteForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('Thank you for your request! We will get back to you with a quote within 24 hours.');
+            quoteForm.reset();
+        });
+    }
 
-    // Tell the button what to do when it gets clicked
-    bookButton.addEventListener("click", function(e) {
-        e.preventDefault();
-        alert("Thanks for your interest! Since they don't have an online booking system yet, please visit us at 4400 Elgin Ave to schedule an appointment.");
-    });
+    const bookingForm = document.getElementById('bookingForm');
+    if (bookingForm) {
+        bookingForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('Thank you for your booking request! We will call you to confirm your appointment details shortly.');
+            bookingForm.reset();
+        });
+    }
 
 });

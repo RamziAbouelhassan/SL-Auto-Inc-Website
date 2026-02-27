@@ -24,8 +24,8 @@
 
         <nav class="menu" id="menu">
           <a href="#services">Services</a>
-          <a href="#gallery">Gallery</a>
-          <a href="#hours">Hours</a>
+          <a href="#reviews">Reviews</a>
+          <a href="booking.html">Book Online</a>
           <a href="#contact">Contact</a>
         </nav>
       </div>
@@ -33,33 +33,32 @@
 
     <main id="top">
       <section class="hero">
-        <div class="container hero-grid">
-          <div>
-            <h1>Your Trusted Partner for Auto Care in SE Calgary</h1>
-            <p class="lead">
-              At SL Auto Inc., we're committed to providing you with reliable diagnostics, transparent pricing, and exceptional workmanship. We're proud to serve McKenzie Towne and the neighbouring communities.
-            </p>
+        <div class="container">
+          <h1>Honest, Reliable Auto Repair for Calgary</h1>
+          <p class="lead">
+            Tired of surprise fees and confusing explanations? We deliver transparent service, fair pricing, and work you can trust.
+          </p>
+          <div class="cta-row">
+            <a class="btn primary" href="tel:+15872283688">Call For a Quote</a>
+            <a class="btn secondary" href="booking.html">Book Online</a>
+          </div>
+        </div>
+      </section>
 
-            <div class="cta-row">
-              <a class="btn primary" href="tel:+15872283688">Call to book</a>
-              <a class="btn" href="#contact">Get directions</a>
+      <section class="trust-strip">
+        <div class="container">
+            <div class="trust-item">
+                <h4>Experienced Technicians</h4>
+                <p>ASE certified, 15+ years of combined experience.</p>
             </div>
-          </div>
-
-          <div class="hero-card">
-            <h2>Quick services</h2>
-            <ul class="checklist">
-              <li>Oil & filter</li>
-              <li>Brakes</li>
-              <li>Battery & charging</li>
-              <li>Diagnostics</li>
-              <li>Suspension</li>
-              <li>Maintenance</li>
-            </ul>
-            <p class="small">
-              Not sure what you need? Call and describe the issue. We’ll tell you the next step.
-            </p>
-          </div>
+            <div class="trust-item">
+                <h4>Honest, Transparent Pricing</h4>
+                <p>We provide clear, upfront quotes before any work begins.</p>
+            </div>
+            <div class="trust-item">
+                <h4>Warranty on Parts & Labour</h4>
+                <p>Enjoy peace of mind with our 12-month/12,000-mile warranty.</p>
+            </div>
         </div>
       </section>
 
@@ -102,39 +101,49 @@
         </div>
       </section>
 
-      <section class="section" id="gallery">
+      <section class="section alt" id="reviews">
         <div class="container">
-          <h2>Gallery</h2>
-          <p class="muted">A look at our shop and some of the work we do.</p>
-          <div class="gallery-grid">
-            <img src="images/placeholder.svg" alt="Placeholder image for the gallery" />
-            <img src="images/placeholder.svg" alt="Placeholder image for the gallery" />
-            <img src="images/placeholder.svg" alt="Placeholder image for the gallery" />
+          <h2>What Our Customers Say</h2>
+          <div class="testimonial-grid">
+            <div class="testimonial-card">
+              <p>"SL Auto went above and beyond to fix my car's AC. They were fast, honest, and the price was fair. Highly recommend this shop to anyone in Calgary."</p>
+              <div class="testimonial-author">- Sarah K.</div>
+            </div>
+            <div class="testimonial-card">
+              <p>"Finally, a mechanic I can trust. They showed me the old parts, explained the issue clearly, and didn't pressure me into extra services. The car runs like new."</p>
+              <div class="testimonial-author">- Mike P.</div>
+            </div>
+            <div class="testimonial-card">
+                <p>"Took my truck in for a weird noise the dealership couldn't figure out. These guys diagnosed and fixed it in a few hours. Absolutely top-notch service."</p>
+                <div class="testimonial-author">- David R.</div>
+            </div>
           </div>
-          <p class="small note">
-            To add your own images, replace the <code>src</code> attribute of the <code>&lt;img&gt;</code> tags with the URL of your image. For example: <code>&lt;img src="https://your-image-url.com/image.jpg"&gt;</code>
-          </p>
         </div>
       </section>
 
-      <section class="section alt" id="hours">
+      <section class="section" id="quote">
         <div class="container">
-          <h2>Hours</h2>
-          <p class="muted">Hours can change. Call to confirm if you’re coming in same-day.</p>
-
-          <div class="hours">
-            <div class="hours-row"><span>Monday</span><span>10:00 AM – 7:00 PM</span></div>
-            <div class="hours-row"><span>Tuesday</span><span>10:00 AM – 7:00 PM</span></div>
-            <div class="hours-row"><span>Wednesday</span><span>10:00 AM – 7:00 PM</span></div>
-            <div class="hours-row"><span>Thursday</span><span>10:00 AM – 7:00 PM</span></div>
-            <div class="hours-row"><span>Friday</span><span>10:00 AM – 6:00 PM</span></div>
-            <div class="hours-row"><span>Saturday</span><span>Closed</span></div>
-            <div class="hours-row"><span>Sunday</span><span>9:00 AM – 5:00 PM</span></div>
-          </div>
-
-          <p class="small note">
-            If these hours aren’t accurate, edit them in <code>index.html</code> under the “Hours” section.
-          </p>
+            <h2>Get a Quick Quote</h2>
+            <p class="muted">Tell us what’s wrong with your car, and we’ll get back to you with an estimate.</p>
+            <form class="form-card" id="quoteForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quoteName">Full Name</label>
+                        <input type="text" id="quoteName" name="name" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="quotePhone">Phone or Email</label>
+                        <input type="text" id="quotePhone" name="phone" required />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="quoteDetails">What's your car doing?</label>
+                    <textarea id="quoteDetails" name="details" rows="4" placeholder="e.g., Making a grinding noise when I brake, check engine light is on, won't start..."></textarea>
+                </div>
+                <div class="cta-row">
+                    <button type="submit" class="btn primary">Send Request</button>
+                </div>
+            </form>
         </div>
       </section>
 

@@ -8,9 +8,36 @@
       name="description"
       content="SL Auto Inc - reliable auto repair in McKenzie Towne, Calgary. Diagnostics, brakes, maintenance, suspension, and everyday vehicle repair."
     />
+    <meta name="theme-color" content="#1f232b" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "AutoRepair",
+        "name": "SL Auto Inc",
+        "telephone": "+1-587-228-3688",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "4400 Elgin Ave SE",
+          "addressLocality": "Calgary",
+          "addressRegion": "AB",
+          "postalCode": "T2Z 4V8",
+          "addressCountry": "CA"
+        },
+        "areaServed": "SE Calgary",
+        "openingHoursSpecification": [
+          { "@type": "OpeningHoursSpecification", "dayOfWeek": "Monday", "opens": "10:00", "closes": "19:00" },
+          { "@type": "OpeningHoursSpecification", "dayOfWeek": "Tuesday", "opens": "10:00", "closes": "19:00" },
+          { "@type": "OpeningHoursSpecification", "dayOfWeek": "Wednesday", "opens": "10:00", "closes": "19:00" },
+          { "@type": "OpeningHoursSpecification", "dayOfWeek": "Thursday", "opens": "10:00", "closes": "19:00" },
+          { "@type": "OpeningHoursSpecification", "dayOfWeek": "Friday", "opens": "10:00", "closes": "18:00" },
+          { "@type": "OpeningHoursSpecification", "dayOfWeek": "Sunday", "opens": "09:00", "closes": "17:00" }
+        ]
+      }
+    </script>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <a class="skip-link" href="#top">Skip to main content</a>
     <header class="header">
       <div class="topbar">
         <div class="container topbar-row">
@@ -25,12 +52,20 @@
           <span class="brand-text">Auto Inc</span>
         </a>
 
-        <button class="menu-btn" id="menuBtn" aria-expanded="false" aria-controls="menu">
+        <button
+          class="menu-btn"
+          id="menuBtn"
+          aria-expanded="false"
+          aria-controls="menu"
+          aria-haspopup="true"
+          aria-label="Open navigation menu"
+        >
           Menu
         </button>
 
-        <nav class="menu" id="menu">
+        <nav class="menu" id="menu" aria-label="Primary navigation">
           <a href="#services">Services</a>
+          <a href="booking.html">Book Online</a>
           <a href="#why-us">Why Us</a>
           <a href="#process">Process</a>
           <a href="#hours">Hours</a>
@@ -41,7 +76,7 @@
       </div>
     </header>
 
-    <main id="top">
+    <main id="top" tabindex="-1">
       <section class="hero">
         <div class="container hero-grid">
           <div class="hero-copy">
@@ -54,6 +89,7 @@
 
             <div class="cta-row">
               <a class="btn primary" href="tel:+15872283688">Call to book service</a>
+              <a class="btn" href="booking.html">Book online</a>
               <a class="btn" href="#contact">Get directions</a>
             </div>
 
@@ -262,7 +298,10 @@
               <li>Recent repairs or maintenance</li>
               <li>Best callback number</li>
             </ul>
-            <a class="btn primary wide" href="tel:+15872283688">Call to book service</a>
+            <div class="cta-row">
+              <a class="btn primary wide" href="tel:+15872283688">Call to book service</a>
+              <a class="btn wide" href="booking.html">Request booking online</a>
+            </div>
           </aside>
         </div>
       </section>
@@ -272,17 +311,18 @@
           <div class="section-head">
             <h2>Hours</h2>
             <p class="muted">Hours can change. Call ahead to confirm if you plan to come in the same day.</p>
+            <div class="hours-status" id="hoursStatus" aria-live="polite">Checking shop hours in Calgary...</div>
           </div>
 
           <div class="hours-layout">
             <div class="hours">
-              <div class="hours-row"><span>Monday</span><span>10:00 AM - 7:00 PM</span></div>
-              <div class="hours-row"><span>Tuesday</span><span>10:00 AM - 7:00 PM</span></div>
-              <div class="hours-row"><span>Wednesday</span><span>10:00 AM - 7:00 PM</span></div>
-              <div class="hours-row"><span>Thursday</span><span>10:00 AM - 7:00 PM</span></div>
-              <div class="hours-row"><span>Friday</span><span>10:00 AM - 6:00 PM</span></div>
-              <div class="hours-row"><span>Saturday</span><span>Closed</span></div>
-              <div class="hours-row"><span>Sunday</span><span>9:00 AM - 5:00 PM</span></div>
+              <div class="hours-row" data-day="1" data-open="10:00" data-close="19:00"><span>Monday</span><span>10:00 AM - 7:00 PM</span></div>
+              <div class="hours-row" data-day="2" data-open="10:00" data-close="19:00"><span>Tuesday</span><span>10:00 AM - 7:00 PM</span></div>
+              <div class="hours-row" data-day="3" data-open="10:00" data-close="19:00"><span>Wednesday</span><span>10:00 AM - 7:00 PM</span></div>
+              <div class="hours-row" data-day="4" data-open="10:00" data-close="19:00"><span>Thursday</span><span>10:00 AM - 7:00 PM</span></div>
+              <div class="hours-row" data-day="5" data-open="10:00" data-close="18:00"><span>Friday</span><span>10:00 AM - 6:00 PM</span></div>
+              <div class="hours-row" data-day="6" data-closed="true"><span>Saturday</span><span>Closed</span></div>
+              <div class="hours-row" data-day="0" data-open="09:00" data-close="17:00"><span>Sunday</span><span>9:00 AM - 5:00 PM</span></div>
             </div>
 
             <aside class="hours-note-card">
@@ -328,7 +368,7 @@
                 <a
                   class="btn"
                   target="_blank"
-                  rel="noopener"
+                  rel="noopener noreferrer"
                   href="https://www.google.com/maps/search/?api=1&query=SL%20Auto%20Inc%204400%20Elgin%20Ave%20SE%20Calgary%20AB"
                 >
                   Open in Google Maps
@@ -367,7 +407,10 @@
               Call SL Auto Inc and describe what your vehicle is doing. We can help you figure out the best next step.
             </p>
           </div>
-          <a class="btn primary large" href="tel:+15872283688">Call (587) 228-3688</a>
+          <div class="cta-row">
+            <a class="btn primary large" href="tel:+15872283688">Call (587) 228-3688</a>
+            <a class="btn large" href="booking.html">Book online</a>
+          </div>
         </div>
       </section>
     </main>
@@ -379,6 +422,18 @@
       </div>
     </footer>
 
-    <script src="script.js"></script>
+    <nav class="mobile-quick-actions" aria-label="Quick actions">
+      <a class="btn primary" href="tel:+15872283688">Call now</a>
+      <a
+        class="btn"
+        target="_blank"
+        rel="noopener noreferrer"
+        href="https://www.google.com/maps/search/?api=1&query=SL%20Auto%20Inc%204400%20Elgin%20Ave%20SE%20Calgary%20AB"
+      >
+        Directions
+      </a>
+    </nav>
+
+    <script src="script.js" defer></script>
   </body>
 </html>

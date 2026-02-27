@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Book Service | SL Auto Inc Calgary</title>
+    <meta
+      name="description"
+      content="Book auto repair or maintenance with SL Auto Inc in Calgary. Request an appointment online or call the shop for faster scheduling."
+    />
+    <meta name="theme-color" content="#1f232b" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#top">Skip to main content</a>
+    <header class="header">
+      <div class="topbar">
+        <div class="container topbar-row">
+          <span>SL Auto Inc booking page | Request service online or call the shop</span>
+          <a href="tel:+15872283688">(587) 228-3688</a>
+        </div>
+      </div>
+
+      <div class="container nav">
+        <a class="brand" href="index.html#top" aria-label="SL Auto Inc home">
+          <span class="brand-mark">SL</span>
+          <span class="brand-text">Auto Inc</span>
+        </a>
+
+        <button
+          class="menu-btn"
+          id="menuBtn"
+          aria-expanded="false"
+          aria-controls="menu"
+          aria-haspopup="true"
+          aria-label="Open navigation menu"
+        >
+          Menu
+        </button>
+
+        <nav class="menu" id="menu" aria-label="Primary navigation">
+          <a href="index.html#services">Services</a>
+          <a href="booking.html" aria-current="page">Book Online</a>
+          <a href="index.html#why-us">Why Us</a>
+          <a href="index.html#hours">Hours</a>
+          <a href="index.html#contact">Contact</a>
+        </nav>
+
+        <a class="call-btn" href="tel:+15872283688">Call to book</a>
+      </div>
+    </header>
+
+    <main id="top" tabindex="-1">
+      <section class="section booking-hero-section">
+        <div class="container booking-hero">
+          <div class="booking-hero-copy">
+            <p class="eyebrow">Booking & Intake</p>
+            <h1>Book online or call the shop. We’ll confirm the right appointment for your vehicle.</h1>
+            <p class="lead">
+              Use the online form for a booking request any time, or call for same-day availability, warning lights,
+              no-start issues, brake concerns, and urgent drivability problems.
+            </p>
+
+            <div class="cta-row">
+              <a class="btn primary" href="tel:+15872283688">Call (587) 228-3688</a>
+              <a class="btn" href="#booking-form">Start online booking</a>
+              <a class="btn" href="index.html">Back to homepage</a>
+            </div>
+
+            <div class="hero-tags" aria-label="Booking highlights">
+              <span class="tag">Online request in under 2 minutes</span>
+              <span class="tag">Phone confirmation before work begins</span>
+              <span class="tag">Diagnostics and maintenance bookings</span>
+              <span class="tag">SE Calgary / McKenzie Towne area</span>
+            </div>
+
+            <div class="booking-note">
+              <strong>How this works:</strong> Online requests reserve your spot in the queue. We confirm timing and
+              appointment details by phone or text.
+            </div>
+          </div>
+
+          <aside class="booking-side-card" aria-label="Call or visit info">
+            <h2>Quick booking options</h2>
+            <div class="hours-status" id="hoursStatus" aria-live="polite">Checking shop hours in Calgary...</div>
+
+            <div class="quick-action-stack">
+              <a class="btn primary wide" href="tel:+15872283688">Call to book</a>
+              <a
+                class="btn wide"
+                target="_blank"
+                rel="noopener noreferrer"
+                href="https://www.google.com/maps/search/?api=1&query=SL%20Auto%20Inc%204400%20Elgin%20Ave%20SE%20Calgary%20AB"
+              >
+                Open directions
+              </a>
+            </div>
+
+            <div class="mini-hours" aria-label="Shop hours">
+              <div class="hours-row" data-day="1" data-open="10:00" data-close="19:00"><span>Mon</span><span>10 AM - 7 PM</span></div>
+              <div class="hours-row" data-day="2" data-open="10:00" data-close="19:00"><span>Tue</span><span>10 AM - 7 PM</span></div>
+              <div class="hours-row" data-day="3" data-open="10:00" data-close="19:00"><span>Wed</span><span>10 AM - 7 PM</span></div>
+              <div class="hours-row" data-day="4" data-open="10:00" data-close="19:00"><span>Thu</span><span>10 AM - 7 PM</span></div>
+              <div class="hours-row" data-day="5" data-open="10:00" data-close="18:00"><span>Fri</span><span>10 AM - 6 PM</span></div>
+              <div class="hours-row" data-day="6" data-closed="true"><span>Sat</span><span>Closed</span></div>
+              <div class="hours-row" data-day="0" data-open="09:00" data-close="17:00"><span>Sun</span><span>9 AM - 5 PM</span></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section alt" id="booking-form">
+        <div class="container booking-grid">
+          <aside class="booking-left-rail">
+            <div class="booking-rail-card">
+              <h3>Best reasons to call instead</h3>
+              <ul class="plain-list">
+                <li>No-start or dead battery right now</li>
+                <li>Brake warning light / major brake noise</li>
+                <li>Vehicle not safe to drive</li>
+                <li>You need same-day diagnostic advice</li>
+              </ul>
+              <a class="btn primary wide" href="tel:+15872283688">Call now</a>
+            </div>
+
+            <div class="booking-rail-card">
+              <h3>Online booking is great for</h3>
+              <ul class="plain-list">
+                <li>Routine maintenance requests</li>
+                <li>Brake inspections</li>
+                <li>Check engine light appointments</li>
+                <li>Suspension / steering concerns</li>
+                <li>Trip / seasonal inspections</li>
+              </ul>
+            </div>
+
+            <div class="booking-rail-card">
+              <h3>What happens next</h3>
+              <ol class="booking-steps-list">
+                <li>Submit your request</li>
+                <li>We review issue details</li>
+                <li>We confirm timing by phone/text</li>
+                <li>Work begins only after approval</li>
+              </ol>
+            </div>
+          </aside>
+
+          <div class="booking-form-card">
+            <div class="section-head compact">
+              <h2>Request an appointment online</h2>
+              <p class="muted">Fill this out and we’ll follow up to confirm the right service and appointment time.</p>
+            </div>
+
+            <div class="service-pills" aria-label="Common services">
+              <button type="button" class="service-pill" data-service-choice="Oil change / maintenance">Oil service</button>
+              <button type="button" class="service-pill" data-service-choice="Brake inspection / repair">Brakes</button>
+              <button type="button" class="service-pill" data-service-choice="Check engine light diagnosis">Check engine</button>
+              <button type="button" class="service-pill" data-service-choice="Battery / charging issue">Battery / electrical</button>
+              <button type="button" class="service-pill" data-service-choice="Steering / suspension concern">Suspension</button>
+            </div>
+
+            <form id="bookingForm" class="booking-form" novalidate>
+              <input type="text" name="website" tabindex="-1" autocomplete="off" hidden />
+              <div class="form-grid two">
+                <label class="field">
+                  <span>Full name *</span>
+                  <input type="text" name="name" autocomplete="name" required />
+                </label>
+
+                <label class="field">
+                  <span>Phone number *</span>
+                  <input type="tel" name="phone" autocomplete="tel" placeholder="(587) 000-0000" required />
+                </label>
+
+                <label class="field">
+                  <span>Email (optional)</span>
+                  <input type="email" name="email" autocomplete="email" placeholder="you@example.com" />
+                </label>
+
+                <label class="field">
+                  <span>Preferred contact method *</span>
+                  <select name="contactMethod" required>
+                    <option value="">Select one</option>
+                    <option>Phone call</option>
+                    <option>Text message</option>
+                    <option>Email</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>Vehicle year *</span>
+                  <input type="number" name="year" min="1980" max="2035" placeholder="2018" required />
+                </label>
+
+                <label class="field">
+                  <span>Vehicle make *</span>
+                  <input type="text" name="make" placeholder="Toyota" required />
+                </label>
+
+                <label class="field">
+                  <span>Vehicle model *</span>
+                  <input type="text" name="model" placeholder="RAV4" required />
+                </label>
+
+                <label class="field">
+                  <span>Preferred date *</span>
+                  <input type="date" id="preferredDate" name="preferredDate" required />
+                </label>
+
+                <label class="field">
+                  <span>Preferred time window *</span>
+                  <select name="timeWindow" required>
+                    <option value="">Select a window</option>
+                    <option>Morning (9 AM - 12 PM)</option>
+                    <option>Midday (12 PM - 3 PM)</option>
+                    <option>Afternoon (3 PM - 6 PM)</option>
+                    <option>Flexible (shop can suggest best time)</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>Service requested *</span>
+                  <select id="serviceType" name="serviceType" required>
+                    <option value="">Select service</option>
+                    <option>Oil change / maintenance</option>
+                    <option>Brake inspection / repair</option>
+                    <option>Check engine light diagnosis</option>
+                    <option>Battery / charging issue</option>
+                    <option>Steering / suspension concern</option>
+                    <option>Noise / vibration concern</option>
+                    <option>Pre-trip / seasonal inspection</option>
+                    <option>General diagnosis / other</option>
+                  </select>
+                </label>
+              </div>
+
+              <label class="field">
+                <span>What is the vehicle doing? (optional)</span>
+                <textarea
+                  name="concern"
+                  rows="5"
+                  placeholder="Optional for routine service. Example: Check engine light came on yesterday. Slight rough idle at stop lights."
+                ></textarea>
+              </label>
+
+              <div class="form-grid two">
+                <label class="field">
+                  <span>Drop-off / waiting preference</span>
+                  <select name="visitType">
+                    <option>Not sure yet</option>
+                    <option>Drop-off</option>
+                    <option>Wait if possible</option>
+                    <option>Need shuttle / ride info (if available)</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>Urgency</span>
+                  <select name="urgency">
+                    <option>Standard booking request</option>
+                    <option>Soon (next 1-2 days)</option>
+                    <option>Urgent - vehicle issue affecting drivability</option>
+                  </select>
+                </label>
+              </div>
+
+              <label class="check-field">
+                <input type="checkbox" name="consent" required />
+                <span>I understand the appointment is confirmed only after the shop contacts me.</span>
+              </label>
+
+              <div class="booking-form-actions">
+                <button type="submit" class="btn primary">Submit booking request</button>
+                <a class="btn" href="tel:+15872283688">Prefer to call instead</a>
+              </div>
+
+              <p class="small booking-form-note">
+                This request saves to the booking API when the backend is running. The shop still confirms appointments
+                by phone/text before booking is finalized.
+              </p>
+            </form>
+
+            <div class="booking-success" id="bookingSuccess" hidden aria-live="polite">
+              <div class="booking-success-head">
+                <strong>Booking request captured</strong>
+                <span>Demo confirmation</span>
+              </div>
+              <p id="bookingSuccessText" class="muted"></p>
+              <div class="booking-summary" id="bookingSummary"></div>
+              <div class="booking-success-actions">
+                <a class="btn primary" href="tel:+15872283688">Call to confirm now</a>
+                <button type="button" class="btn" id="editBookingBtn">Edit request</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container">
+          <div class="section-head">
+            <h2>Why this booking page works for a local shop</h2>
+            <p class="muted">It gives customers two easy paths: call now or send a clear request online.</p>
+          </div>
+
+          <div class="feature-grid">
+            <article class="feature-card">
+              <h3>Better lead quality</h3>
+              <p>Vehicle details and symptoms are captured before the callback, which helps with scheduling and intake.</p>
+            </article>
+            <article class="feature-card">
+              <h3>After-hours requests</h3>
+              <p>Customers can submit a request any time, even when the shop is closed, without waiting to call.</p>
+            </article>
+            <article class="feature-card">
+              <h3>Phone still prioritized</h3>
+              <p>Urgent issues are pushed toward phone calls so the shop can respond faster to critical problems.</p>
+            </article>
+            <article class="feature-card">
+              <h3>Easy to upgrade later</h3>
+              <p>The form can be connected to email, a CRM, or a booking system without redesigning the page.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container footer-row">
+        <div>&copy; <span id="year"></span> SL Auto Inc</div>
+        <div class="small muted">Booking requests + phone scheduling | SE Calgary</div>
+      </div>
+    </footer>
+
+    <nav class="mobile-quick-actions" aria-label="Quick actions">
+      <a class="btn primary" href="tel:+15872283688">Call now</a>
+      <a class="btn" href="#booking-form">Book online</a>
+    </nav>
+
+    <script src="script.js" defer></script>
+  </body>
+</html>
