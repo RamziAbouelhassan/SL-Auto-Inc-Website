@@ -80,6 +80,7 @@
     manualSuccessMessage: "",
     showManualForm: false,
     rescheduleDraft: createDefaultRescheduleDraft(),
+    rescheduleCalendarMonth: getMonthStartValue(new Date()),
     isSavingReschedule: false,
     showRescheduleForm: false,
     sectionOpen: {
@@ -749,11 +750,13 @@
     const booking = state.bookings.find((entry) => entry.id === bookingId);
     if (!booking || isArchived(booking)) return;
 
+    const preferredDate = getBookingDateValue(booking) || getNextBookableDateValue();
     state.rescheduleDraft = {
       bookingId: booking.id,
-      preferredDate: getBookingDateValue(booking) || getNextBookableDateValue(),
+      preferredDate,
       timeWindow: booking.timeWindow || TIME_WINDOW_OPTIONS[3],
     };
+    state.rescheduleCalendarMonth = getMonthStartValue(getDateFromValue(preferredDate) || new Date());
     state.showRescheduleForm = true;
   }
 
@@ -796,6 +799,12 @@
   }
 
   function render() {
+    const activeElement = document.activeElement;
+    const shouldRestoreDeskSearch =
+      activeElement instanceof HTMLInputElement && activeElement.matches("[data-desk-search]");
+    const deskSearchSelectionStart = shouldRestoreDeskSearch ? activeElement.selectionStart : null;
+    const deskSearchSelectionEnd = shouldRestoreDeskSearch ? activeElement.selectionEnd : null;
+
     const counts = getCounts();
     const booking = deskSelectedBooking();
 
@@ -808,6 +817,16 @@
       ${state.showManualForm ? renderManualEntryDialog() : ""}
       ${state.showRescheduleForm ? renderRescheduleDialog() : ""}
     `;
+
+    if (shouldRestoreDeskSearch) {
+      const deskSearchInput = app.querySelector("[data-desk-search]");
+      if (deskSearchInput instanceof HTMLInputElement) {
+        deskSearchInput.focus({ preventScroll: true });
+        if (deskSearchSelectionStart != null && deskSearchSelectionEnd != null) {
+          deskSearchInput.setSelectionRange(deskSearchSelectionStart, deskSearchSelectionEnd);
+        }
+      }
+    }
   }
 
   function renderTopGrid(counts) {
@@ -984,7 +1003,7 @@
                 <input class="text-input" type="text" name="model" value="${escapeHtml(draft.model)}" required />
               </label>
 
-              <label>
+              <label class="manual-form-span-two">
                 <span class="field-label">Time window</span>
                 <select class="text-input" name="timeWindow" required>
                   ${renderSelectOptions(TIME_WINDOW_OPTIONS, draft.timeWindow)}
@@ -1511,6 +1530,9 @@
   function renderRescheduleDialog() {
     const draft = state.rescheduleDraft;
     const booking = state.bookings.find((entry) => entry.id === draft.bookingId);
+    const calendarDays = buildCalendarDays(state.rescheduleCalendarMonth);
+    const selectedDate = draft.preferredDate;
+    const monthDate = getDateFromValue(state.rescheduleCalendarMonth) || getDateFromValue(selectedDate) || new Date();
 
     return `
       <section class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="reschedule-booking-title">
@@ -1527,14 +1549,33 @@
 
           <form class="manual-form" data-form="reschedule-booking">
             <input type="hidden" name="bookingId" value="${escapeHtml(draft.bookingId)}" />
+            <input type="hidden" name="preferredDate" value="${escapeHtml(draft.preferredDate)}" />
 
             <div class="manual-form-grid">
-              <label>
+              <label class="manual-form-span-two">
                 <span class="field-label">Preferred date</span>
-                <input class="text-input" type="date" name="preferredDate" value="${escapeHtml(draft.preferredDate)}" required />
+                <div class="reschedule-date-display">${escapeHtml(formatPreferredDate(draft.preferredDate))}</div>
+                <div class="reschedule-calendar">
+                  <div class="reschedule-calendar-head">
+                    <strong>${escapeHtml(monthTitleFormatter.format(monthDate))}</strong>
+                    <div class="calendar-toolbar">
+                      <button class="ghost-button calendar-nav-button" type="button" data-reschedule-calendar-nav="prev">Prev</button>
+                      <button class="muted-button calendar-nav-button" type="button" data-reschedule-calendar-nav="today">Today</button>
+                      <button class="ghost-button calendar-nav-button" type="button" data-reschedule-calendar-nav="next">Next</button>
+                    </div>
+                  </div>
+
+                  <div class="calendar-grid calendar-grid-labels" aria-hidden="true">
+                    ${calendarWeekdayLabels.map((label) => `<span class="calendar-weekday">${escapeHtml(label)}</span>`).join("")}
+                  </div>
+
+                  <div class="calendar-grid calendar-grid-days reschedule-calendar-grid">
+                    ${calendarDays.map((day) => renderRescheduleCalendarDay(day, selectedDate)).join("")}
+                  </div>
+                </div>
               </label>
 
-              <label>
+              <label class="manual-form-span-two">
                 <span class="field-label">Time window</span>
                 <select class="text-input" name="timeWindow" required>
                   ${renderSelectOptions(TIME_WINDOW_OPTIONS, draft.timeWindow)}
@@ -1550,6 +1591,29 @@
           </form>
         </article>
       </section>
+    `;
+  }
+
+  function renderRescheduleCalendarDay(day, selectedDate) {
+    const classes = [
+      "reschedule-calendar-day",
+      day.isCurrentMonth ? "is-current-month" : "is-outside-month",
+      day.isToday ? "is-today" : "",
+      day.dateValue === selectedDate ? "is-selected" : "",
+      day.date.getDay() === 6 ? "is-unavailable" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    return `
+      <button
+        class="${classes}"
+        type="button"
+        data-reschedule-date="${day.dateValue}"
+        ${day.date.getDay() === 6 ? "disabled" : ""}
+      >
+        <span class="reschedule-calendar-day-number">${day.dayNumber}</span>
+      </button>
     `;
   }
 
@@ -1837,6 +1901,46 @@
         state.calendarMonth = getMonthStartValue(new Date());
         state.selectedCalendarDate = getBestCalendarDate(state.calendarMonth);
       }
+      render();
+      return;
+    }
+
+    const rescheduleCalendarNavButton = event.target.closest("[data-reschedule-calendar-nav]");
+    if (rescheduleCalendarNavButton) {
+      event.preventDefault();
+      const direction = rescheduleCalendarNavButton.dataset.rescheduleCalendarNav;
+      const monthDate = getDateFromValue(state.rescheduleCalendarMonth) || getDateFromValue(state.rescheduleDraft.preferredDate) || new Date();
+      if (direction === "prev") {
+        monthDate.setMonth(monthDate.getMonth() - 1);
+      } else if (direction === "next") {
+        monthDate.setMonth(monthDate.getMonth() + 1);
+      } else {
+        const today = getTodayDateValue();
+        state.rescheduleDraft = {
+          ...state.rescheduleDraft,
+          preferredDate: today,
+        };
+        state.rescheduleCalendarMonth = getMonthStartValue(getDateFromValue(today) || new Date());
+        render();
+        return;
+      }
+
+      monthDate.setDate(1);
+      state.rescheduleCalendarMonth = getMonthStartValue(monthDate);
+      render();
+      return;
+    }
+
+    const rescheduleDateButton = event.target.closest("[data-reschedule-date]");
+    if (rescheduleDateButton) {
+      event.preventDefault();
+      const dateValue = rescheduleDateButton.dataset.rescheduleDate || "";
+      if (!dateValue) return;
+      state.rescheduleDraft = {
+        ...state.rescheduleDraft,
+        preferredDate: dateValue,
+      };
+      state.rescheduleCalendarMonth = getMonthStartValue(getDateFromValue(dateValue) || new Date());
       render();
       return;
     }

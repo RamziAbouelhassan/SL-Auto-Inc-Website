@@ -198,9 +198,43 @@
                   <input type="text" name="model" placeholder="Civic" required />
                 </label>
 
-                <label class="field">
+                <label class="field field-date">
                   <span>Preferred date *</span>
-                  <input type="date" id="preferredDate" name="preferredDate" required />
+                  <input type="hidden" id="preferredDate" name="preferredDate" />
+                  <button
+                    type="button"
+                    class="booking-date-trigger"
+                    id="preferredDateTrigger"
+                    aria-haspopup="dialog"
+                    aria-expanded="false"
+                    aria-controls="preferredDateCalendar"
+                  >
+                    <span id="preferredDateDisplay">Select a date</span>
+                  </button>
+                  <div class="booking-date-popover" id="preferredDateCalendar" hidden>
+                    <div class="booking-date-popover-head">
+                      <strong id="preferredDateMonthLabel">March 2026</strong>
+                      <div class="booking-date-nav">
+                        <button type="button" class="booking-date-nav-button" data-booking-calendar-nav="prev">Prev</button>
+                        <button type="button" class="booking-date-nav-button is-muted" data-booking-calendar-nav="today">Today</button>
+                        <button type="button" class="booking-date-nav-button" data-booking-calendar-nav="next">Next</button>
+                      </div>
+                    </div>
+
+                    <div class="booking-date-weekdays" aria-hidden="true">
+                      <span>Sun</span>
+                      <span>Mon</span>
+                      <span>Tue</span>
+                      <span>Wed</span>
+                      <span>Thu</span>
+                      <span>Fri</span>
+                      <span>Sat</span>
+                    </div>
+
+                    <div class="booking-date-grid" id="preferredDateCalendarGrid"></div>
+                  </div>
+                  <span class="field-help">Saturdays are closed. Pick Sunday or a weekday.</span>
+                  <span class="field-help booking-date-error" id="preferredDateError" hidden></span>
                 </label>
 
                 <label class="field">

@@ -217,11 +217,130 @@ if (hoursStatusEl && hoursRows.length) {
 const bookingForm = document.getElementById("bookingForm");
 const serviceTypeEl = document.getElementById("serviceType");
 const preferredDateEl = document.getElementById("preferredDate");
+const preferredDateTriggerEl = document.getElementById("preferredDateTrigger");
+const preferredDateDisplayEl = document.getElementById("preferredDateDisplay");
+const preferredDateCalendarEl = document.getElementById("preferredDateCalendar");
+const preferredDateMonthLabelEl = document.getElementById("preferredDateMonthLabel");
+const preferredDateCalendarGridEl = document.getElementById("preferredDateCalendarGrid");
+const preferredDateErrorEl = document.getElementById("preferredDateError");
 const bookingSuccessEl = document.getElementById("bookingSuccess");
 const bookingSuccessTextEl = document.getElementById("bookingSuccessText");
 const bookingSummaryEl = document.getElementById("bookingSummary");
 const editBookingBtn = document.getElementById("editBookingBtn");
 const servicePills = Array.from(document.querySelectorAll(".service-pill[data-service-choice]"));
+const API_BASE_STORAGE_KEY = "sl-auto-api-base";
+const API_SERVICE_NAME = "sl-auto-booking-api";
+const LOCAL_API_PORTS = ["3000", "4310"];
+const isLoopbackHost = (hostname) => hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+const isPrivateIpv4Host = (hostname) =>
+  /^10\./.test(hostname) ||
+  /^192\.168\./.test(hostname) ||
+  /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
+const normalizeBaseUrl = (value) => String(value || "").trim().replace(/\/+$/, "");
+const loadStoredBookingApiBase = () => {
+  try {
+    const saved = window.localStorage.getItem(API_BASE_STORAGE_KEY);
+    if (saved && saved.trim()) return normalizeBaseUrl(saved);
+  } catch (error) {
+    // Ignore storage errors.
+  }
+
+  return "";
+};
+const persistBookingApiBase = (baseUrl) => {
+  try {
+    window.localStorage.setItem(API_BASE_STORAGE_KEY, normalizeBaseUrl(baseUrl));
+  } catch (error) {
+    // Ignore storage errors.
+  }
+};
+const getBookingApiBase = () => {
+  const storedBaseUrl = loadStoredBookingApiBase();
+  if (storedBaseUrl) return storedBaseUrl;
+
+  if (/^https?:$/i.test(window.location.protocol) && window.location.origin && window.location.origin !== "null") {
+    return window.location.origin;
+  }
+
+  return "http://localhost:3000";
+};
+const isBookingApi = async (baseUrl) => {
+  try {
+    const response = await fetch(`${normalizeBaseUrl(baseUrl)}/health`);
+    if (!response.ok) return false;
+
+    const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+    if (!contentType.includes("application/json")) return false;
+
+    const payload = await response.json();
+    return payload?.service === API_SERVICE_NAME;
+  } catch (error) {
+    return false;
+  }
+};
+const getFallbackBookingApiBases = (baseUrl) => {
+  const fallbacks = new Set();
+
+  try {
+    const parsedUrl = new URL(normalizeBaseUrl(baseUrl));
+    fallbacks.add(parsedUrl.origin);
+
+    if (isLoopbackHost(parsedUrl.hostname) || isPrivateIpv4Host(parsedUrl.hostname)) {
+      LOCAL_API_PORTS.forEach((port) => {
+        const candidate = new URL(parsedUrl.origin);
+        candidate.port = port;
+        fallbacks.add(candidate.origin);
+      });
+    }
+
+    if (parsedUrl.hostname === "localhost") {
+      LOCAL_API_PORTS.forEach((port) => {
+        fallbacks.add(`http://127.0.0.1:${port}`);
+      });
+    }
+
+    if (parsedUrl.hostname === "127.0.0.1") {
+      LOCAL_API_PORTS.forEach((port) => {
+        fallbacks.add(`http://localhost:${port}`);
+      });
+    }
+  } catch (error) {
+    LOCAL_API_PORTS.forEach((port) => {
+      fallbacks.add(`http://localhost:${port}`);
+      fallbacks.add(`http://127.0.0.1:${port}`);
+    });
+  }
+
+  return Array.from(fallbacks).map(normalizeBaseUrl).filter(Boolean);
+};
+const resolveWorkingBookingApiBase = async (baseUrl) => {
+  const requestedBaseUrl = normalizeBaseUrl(baseUrl) || getBookingApiBase();
+  const attemptedBases = [];
+  const seen = new Set();
+
+  const tryCandidate = async (candidate) => {
+    const normalizedCandidate = normalizeBaseUrl(candidate);
+    if (!normalizedCandidate || seen.has(normalizedCandidate)) return null;
+    seen.add(normalizedCandidate);
+    attemptedBases.push(normalizedCandidate);
+    return (await isBookingApi(normalizedCandidate)) ? normalizedCandidate : null;
+  };
+
+  const directMatch = await tryCandidate(requestedBaseUrl);
+  if (directMatch) {
+    return { baseUrl: directMatch, attemptedBases, matched: true };
+  }
+
+  const fallbackBaseUrls = getFallbackBookingApiBases(requestedBaseUrl);
+  for (const candidate of fallbackBaseUrls) {
+    const fallbackMatch = await tryCandidate(candidate);
+    if (fallbackMatch) {
+      return { baseUrl: fallbackMatch, attemptedBases, matched: true };
+    }
+  }
+
+  return { baseUrl: requestedBaseUrl, attemptedBases, matched: false };
+};
 
 const CLOSED_BOOKING_WEEKDAY = 6;
 const parseBookingDate = (value) => {
@@ -237,6 +356,11 @@ const isClosedBookingDate = (value) => {
   const parsed = parseBookingDate(value);
   return Boolean(parsed && parsed.getDay() === CLOSED_BOOKING_WEEKDAY);
 };
+const isBeforeBookableDate = (value) => {
+  const parsed = parseBookingDate(value);
+  const minDate = getNextBookableDate(new Date());
+  return Boolean(parsed && parsed < minDate);
+};
 const getNextBookableDate = (date) => {
   const nextDate = new Date(date);
   nextDate.setHours(12, 0, 0, 0);
@@ -247,28 +371,307 @@ const getNextBookableDate = (date) => {
 
   return nextDate;
 };
+const bookingDateButtonFormatter = new Intl.DateTimeFormat("en-CA", {
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+});
+const bookingDateMonthFormatter = new Intl.DateTimeFormat("en-CA", {
+  month: "long",
+  year: "numeric",
+});
+const bookingCalendarState = {
+  visibleMonth: getNextBookableDate(new Date()),
+  isOpen: false,
+};
+const bookingCalendarAvailability = {
+  countsByDate: new Map(),
+  hasLoaded: false,
+  isLoading: false,
+  resolvedApiBase: "",
+};
+const BOOKING_CALENDAR_TRANSITION_MS = 180;
+let preferredDateCalendarCloseTimer = null;
+const createMonthAnchor = (date) => {
+  const anchor = new Date(date);
+  anchor.setHours(12, 0, 0, 0);
+  anchor.setDate(1);
+  return anchor;
+};
+const addMonths = (date, amount) => {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + amount, 1);
+  next.setHours(12, 0, 0, 0);
+  return next;
+};
+const isSameCalendarDay = (left, right) =>
+  Boolean(left && right) &&
+  left.getFullYear() === right.getFullYear() &&
+  left.getMonth() === right.getMonth() &&
+  left.getDate() === right.getDate();
+const isBookingDateSelectable = (date) => {
+  const minDate = getNextBookableDate(new Date());
+  return date >= minDate && date.getDay() !== CLOSED_BOOKING_WEEKDAY;
+};
+const getBookingCountForDate = (value) => bookingCalendarAvailability.countsByDate.get(value) || 0;
+const resetBookingCalendarAvailability = () => {
+  bookingCalendarAvailability.countsByDate.clear();
+  bookingCalendarAvailability.hasLoaded = false;
+  bookingCalendarAvailability.isLoading = false;
+};
+const loadBookingCalendarAvailability = async () => {
+  if (bookingCalendarAvailability.hasLoaded || bookingCalendarAvailability.isLoading) return;
+  bookingCalendarAvailability.isLoading = true;
 
-if (preferredDateEl) {
+  try {
+    const apiResolution = await resolveWorkingBookingApiBase(
+      bookingCalendarAvailability.resolvedApiBase || getBookingApiBase()
+    );
+    if (!apiResolution.matched) return;
+
+    bookingCalendarAvailability.resolvedApiBase = apiResolution.baseUrl;
+    persistBookingApiBase(apiResolution.baseUrl);
+
+    const response = await fetch(`${apiResolution.baseUrl}/api/bookings`);
+    if (!response.ok) return;
+
+    const payload = await response.json();
+    const bookings = Array.isArray(payload?.bookings) ? payload.bookings : [];
+    const nextCounts = new Map();
+
+    bookings.forEach((booking) => {
+      const dateValue = String(booking?.preferredDate || "").trim();
+      const status = String(booking?.status || "").trim().toLowerCase();
+      if (!dateValue || booking?.archivedAt || status === "rejected") return;
+      nextCounts.set(dateValue, (nextCounts.get(dateValue) || 0) + 1);
+    });
+
+    bookingCalendarAvailability.countsByDate = nextCounts;
+    bookingCalendarAvailability.hasLoaded = true;
+
+    if (bookingCalendarState.isOpen) {
+      renderPreferredDateCalendar();
+    }
+  } catch (error) {
+    // Keep the customer calendar functional even if the booking API is unavailable.
+  } finally {
+    bookingCalendarAvailability.isLoading = false;
+  }
+};
+const setPreferredDateError = (message) => {
+  if (!preferredDateErrorEl || !preferredDateTriggerEl) return;
+  preferredDateErrorEl.hidden = !message;
+  preferredDateErrorEl.textContent = message || "";
+  preferredDateTriggerEl.setAttribute("aria-invalid", message ? "true" : "false");
+};
+const syncPreferredDateDisplay = () => {
+  if (!preferredDateDisplayEl || !preferredDateTriggerEl || !preferredDateEl) return;
+  const parsed = parseBookingDate(preferredDateEl.value);
+  const hasValue = Boolean(parsed);
+
+  preferredDateDisplayEl.textContent = hasValue
+    ? bookingDateButtonFormatter.format(parsed)
+    : "Select a date";
+  preferredDateTriggerEl.classList.toggle("is-placeholder", !hasValue);
+};
+const closePreferredDateCalendar = () => {
+  if (!preferredDateCalendarEl || !preferredDateTriggerEl) return;
+  bookingCalendarState.isOpen = false;
+  preferredDateTriggerEl.classList.remove("is-open");
+  preferredDateTriggerEl.setAttribute("aria-expanded", "false");
+
+  preferredDateCalendarEl.classList.remove("is-visible");
+  if (preferredDateCalendarCloseTimer) {
+    window.clearTimeout(preferredDateCalendarCloseTimer);
+  }
+
+  preferredDateCalendarCloseTimer = window.setTimeout(() => {
+    if (!bookingCalendarState.isOpen) {
+      preferredDateCalendarEl.hidden = true;
+    }
+    preferredDateCalendarCloseTimer = null;
+  }, BOOKING_CALENDAR_TRANSITION_MS);
+};
+const renderPreferredDateCalendar = () => {
+  if (!preferredDateCalendarGridEl || !preferredDateMonthLabelEl || !preferredDateCalendarEl) return;
+
+  const selectedDate = parseBookingDate(preferredDateEl ? preferredDateEl.value : "");
+  const today = getNextBookableDate(new Date());
+  const visibleMonth = createMonthAnchor(bookingCalendarState.visibleMonth);
+  const monthStartDay = visibleMonth.getDay();
+  const gridStart = new Date(visibleMonth);
+  gridStart.setDate(visibleMonth.getDate() - monthStartDay);
+
+  preferredDateMonthLabelEl.textContent = bookingDateMonthFormatter.format(visibleMonth);
+  preferredDateCalendarGridEl.textContent = "";
+
+  for (let index = 0; index < 42; index += 1) {
+    const day = new Date(gridStart);
+    day.setDate(gridStart.getDate() + index);
+    day.setHours(12, 0, 0, 0);
+
+    const value = formatDateInputValue(day);
+    const bookingCount = getBookingCountForDate(value);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "booking-date-day";
+    button.dataset.dateValue = value;
+
+    const numberEl = document.createElement("span");
+    numberEl.className = "booking-date-day-number";
+    numberEl.textContent = String(day.getDate());
+    button.appendChild(numberEl);
+
+    if (day.getMonth() !== visibleMonth.getMonth()) {
+      button.classList.add("is-outside");
+    }
+
+    if (isSameCalendarDay(day, today)) {
+      button.classList.add("is-today");
+    }
+
+    if (selectedDate && isSameCalendarDay(day, selectedDate)) {
+      button.classList.add("is-selected");
+      button.setAttribute("aria-pressed", "true");
+    }
+
+    if (!isBookingDateSelectable(day)) {
+      button.classList.add("is-disabled");
+      button.disabled = true;
+    }
+
+    const metaEl = document.createElement("span");
+    metaEl.className = "booking-date-day-meta";
+
+    if (day.getDay() === CLOSED_BOOKING_WEEKDAY) {
+      metaEl.textContent = "Closed";
+      button.classList.add("has-meta");
+    } else if (bookingCount > 0) {
+      metaEl.textContent = bookingCount === 1 ? "1 booking" : `${bookingCount} bookings`;
+      button.classList.add("has-meta", "has-bookings");
+      if (bookingCount >= 4) {
+        button.classList.add("is-busy");
+      }
+    }
+
+    if (metaEl.textContent) {
+      button.appendChild(metaEl);
+    }
+
+    preferredDateCalendarGridEl.appendChild(button);
+  }
+
+  const monthButtons = preferredDateCalendarEl.querySelectorAll("[data-booking-calendar-nav]");
+  const minMonth = createMonthAnchor(getNextBookableDate(new Date()));
+  monthButtons.forEach((button) => {
+    if (!(button instanceof HTMLButtonElement)) return;
+    const nav = button.dataset.bookingCalendarNav || "";
+    if (nav === "prev") {
+      const previousMonth = addMonths(visibleMonth, -1);
+      button.disabled = previousMonth < minMonth;
+    }
+  });
+};
+const openPreferredDateCalendar = () => {
+  if (!preferredDateCalendarEl || !preferredDateTriggerEl) return;
+  if (preferredDateCalendarCloseTimer) {
+    window.clearTimeout(preferredDateCalendarCloseTimer);
+    preferredDateCalendarCloseTimer = null;
+  }
+  bookingCalendarState.visibleMonth = createMonthAnchor(
+    parseBookingDate(preferredDateEl ? preferredDateEl.value : "") || getNextBookableDate(new Date())
+  );
+  bookingCalendarState.isOpen = true;
+  renderPreferredDateCalendar();
+  void loadBookingCalendarAvailability();
+  preferredDateCalendarEl.hidden = false;
+  preferredDateTriggerEl.classList.add("is-open");
+  preferredDateTriggerEl.setAttribute("aria-expanded", "true");
+  window.requestAnimationFrame(() => {
+    if (bookingCalendarState.isOpen) {
+      preferredDateCalendarEl.classList.add("is-visible");
+    }
+  });
+};
+const validatePreferredDateSelection = (report = false) => {
+  const value = preferredDateEl ? preferredDateEl.value : "";
+
+  if (!value) {
+    const message = "Please choose a preferred date.";
+    setPreferredDateError(message);
+    if (report && preferredDateTriggerEl) preferredDateTriggerEl.focus();
+    return false;
+  }
+
+  if (isBeforeBookableDate(value)) {
+    const message = "Please choose today or a future booking date.";
+    setPreferredDateError(message);
+    if (report && preferredDateTriggerEl) preferredDateTriggerEl.focus();
+    return false;
+  }
+
+  if (isClosedBookingDate(value)) {
+    const message = "Saturday is closed. Please choose Sunday or a weekday.";
+    setPreferredDateError(message);
+    if (report && preferredDateTriggerEl) preferredDateTriggerEl.focus();
+    return false;
+  }
+
+  setPreferredDateError("");
+  return true;
+};
+
+if (preferredDateEl && preferredDateTriggerEl && preferredDateCalendarEl && preferredDateCalendarGridEl) {
   preferredDateEl.min = formatDateInputValue(getNextBookableDate(new Date()));
+  syncPreferredDateDisplay();
 
-  preferredDateEl.addEventListener("change", () => {
-    if (!preferredDateEl.value) {
-      preferredDateEl.setCustomValidity("");
+  preferredDateTriggerEl.addEventListener("click", () => {
+    if (bookingCalendarState.isOpen) {
+      closePreferredDateCalendar();
       return;
     }
 
-    if (isClosedBookingDate(preferredDateEl.value)) {
-      preferredDateEl.value = "";
-      preferredDateEl.setCustomValidity("Saturday is closed. Please choose Sunday or a weekday.");
-      preferredDateEl.reportValidity();
-      return;
-    }
-
-    preferredDateEl.setCustomValidity("");
+    openPreferredDateCalendar();
   });
 
-  preferredDateEl.addEventListener("input", () => {
-    preferredDateEl.setCustomValidity("");
+  preferredDateCalendarEl.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+
+    const navButton = target.closest("[data-booking-calendar-nav]");
+    if (navButton instanceof HTMLButtonElement) {
+      const direction = navButton.dataset.bookingCalendarNav || "";
+      if (direction === "prev") bookingCalendarState.visibleMonth = addMonths(bookingCalendarState.visibleMonth, -1);
+      if (direction === "next") bookingCalendarState.visibleMonth = addMonths(bookingCalendarState.visibleMonth, 1);
+      if (direction === "today") bookingCalendarState.visibleMonth = createMonthAnchor(getNextBookableDate(new Date()));
+      renderPreferredDateCalendar();
+      return;
+    }
+
+    const dayButton = target.closest(".booking-date-day");
+    if (!(dayButton instanceof HTMLButtonElement) || dayButton.disabled || !preferredDateEl) return;
+
+    preferredDateEl.value = dayButton.dataset.dateValue || "";
+    syncPreferredDateDisplay();
+    validatePreferredDateSelection(false);
+    closePreferredDateCalendar();
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!bookingCalendarState.isOpen) return;
+    const target = event.target;
+    if (!(target instanceof Node)) return;
+    if (!preferredDateCalendarEl.contains(target) && !preferredDateTriggerEl.contains(target)) {
+      closePreferredDateCalendar();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && bookingCalendarState.isOpen) {
+      closePreferredDateCalendar();
+      preferredDateTriggerEl.focus();
+    }
   });
 }
 
@@ -306,121 +709,8 @@ if (serviceTypeEl && servicePills.length) {
 
 if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl) {
   const bookingSubmitBtn = bookingForm.querySelector('button[type="submit"]');
-  const API_BASE_STORAGE_KEY = "sl-auto-api-base";
-  const API_SERVICE_NAME = "sl-auto-booking-api";
-  const LOCAL_API_PORTS = ["3000", "4310"];
-  const isLoopbackHost = (hostname) => hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
-  const isPrivateIpv4Host = (hostname) =>
-    /^10\./.test(hostname) ||
-    /^192\.168\./.test(hostname) ||
-    /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
   let currentBookingId = "";
   let isEditingBooking = false;
-  const normalizeBaseUrl = (value) => String(value || "").trim().replace(/\/+$/, "");
-  const loadStoredBookingApiBase = () => {
-    try {
-      const saved = window.localStorage.getItem(API_BASE_STORAGE_KEY);
-      if (saved && saved.trim()) return normalizeBaseUrl(saved);
-    } catch (error) {
-      // Ignore storage errors.
-    }
-
-    return "";
-  };
-  const persistBookingApiBase = (baseUrl) => {
-    try {
-      window.localStorage.setItem(API_BASE_STORAGE_KEY, normalizeBaseUrl(baseUrl));
-    } catch (error) {
-      // Ignore storage errors.
-    }
-  };
-  const getBookingApiBase = () => {
-    const storedBaseUrl = loadStoredBookingApiBase();
-    if (storedBaseUrl) return storedBaseUrl;
-
-    if (/^https?:$/i.test(window.location.protocol) && window.location.origin && window.location.origin !== "null") {
-      return window.location.origin;
-    }
-
-    return "http://localhost:3000";
-  };
-  const isBookingApi = async (baseUrl) => {
-    try {
-      const response = await fetch(`${normalizeBaseUrl(baseUrl)}/health`);
-      if (!response.ok) return false;
-
-      const contentType = String(response.headers.get("content-type") || "").toLowerCase();
-      if (!contentType.includes("application/json")) return false;
-
-      const payload = await response.json();
-      return payload?.service === API_SERVICE_NAME;
-    } catch (error) {
-      return false;
-    }
-  };
-  const getFallbackBookingApiBases = (baseUrl) => {
-    const fallbacks = new Set();
-
-    try {
-      const parsedUrl = new URL(normalizeBaseUrl(baseUrl));
-      fallbacks.add(parsedUrl.origin);
-
-      if (isLoopbackHost(parsedUrl.hostname) || isPrivateIpv4Host(parsedUrl.hostname)) {
-        LOCAL_API_PORTS.forEach((port) => {
-          const candidate = new URL(parsedUrl.origin);
-          candidate.port = port;
-          fallbacks.add(candidate.origin);
-        });
-      }
-
-      if (parsedUrl.hostname === "localhost") {
-        LOCAL_API_PORTS.forEach((port) => {
-          fallbacks.add(`http://127.0.0.1:${port}`);
-        });
-      }
-
-      if (parsedUrl.hostname === "127.0.0.1") {
-        LOCAL_API_PORTS.forEach((port) => {
-          fallbacks.add(`http://localhost:${port}`);
-        });
-      }
-    } catch (error) {
-      LOCAL_API_PORTS.forEach((port) => {
-        fallbacks.add(`http://localhost:${port}`);
-        fallbacks.add(`http://127.0.0.1:${port}`);
-      });
-    }
-
-    return Array.from(fallbacks).map(normalizeBaseUrl).filter(Boolean);
-  };
-  const resolveWorkingBookingApiBase = async (baseUrl) => {
-    const requestedBaseUrl = normalizeBaseUrl(baseUrl) || getBookingApiBase();
-    const attemptedBases = [];
-    const seen = new Set();
-
-    const tryCandidate = async (candidate) => {
-      const normalizedCandidate = normalizeBaseUrl(candidate);
-      if (!normalizedCandidate || seen.has(normalizedCandidate)) return null;
-      seen.add(normalizedCandidate);
-      attemptedBases.push(normalizedCandidate);
-      return (await isBookingApi(normalizedCandidate)) ? normalizedCandidate : null;
-    };
-
-    const directMatch = await tryCandidate(requestedBaseUrl);
-    if (directMatch) {
-      return { baseUrl: directMatch, attemptedBases, matched: true };
-    }
-
-    const fallbackBaseUrls = getFallbackBookingApiBases(requestedBaseUrl);
-    for (const candidate of fallbackBaseUrls) {
-      const fallbackMatch = await tryCandidate(candidate);
-      if (fallbackMatch) {
-        return { baseUrl: fallbackMatch, attemptedBases, matched: true };
-      }
-    }
-
-    return { baseUrl: requestedBaseUrl, attemptedBases, matched: false };
-  };
 
   const formatDateForDisplay = (value) => {
     if (!value) return "Not specified";
@@ -478,6 +768,10 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
       return;
     }
 
+    if (!validatePreferredDateSelection(true)) {
+      return;
+    }
+
     const formData = new FormData(bookingForm);
     const details = {
       name: String(formData.get("name") || "").trim(),
@@ -500,13 +794,6 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
       source: "website",
       website: String(formData.get("website") || "").trim(),
     };
-
-    if (preferredDateEl && isClosedBookingDate(details.preferredDate)) {
-      preferredDateEl.value = "";
-      preferredDateEl.setCustomValidity("Saturday is closed. Please choose Sunday or a weekday.");
-      preferredDateEl.reportValidity();
-      return;
-    }
 
     const isUpdateRequest = Boolean(isEditingBooking && currentBookingId);
     syncSubmitButton(true);
@@ -552,6 +839,8 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
       currentBookingId = payload.id || (payload.booking && payload.booking.id) || currentBookingId;
       isEditingBooking = false;
       persistBookingApiBase(resolvedApiBase);
+      bookingCalendarAvailability.resolvedApiBase = resolvedApiBase;
+      resetBookingCalendarAvailability();
     } catch (error) {
       const message = error && error.message ? error.message : "Could not connect to booking API.";
       const triedLabel = attemptedApiBases.length ? attemptedApiBases.join("\n- ") : resolvedApiBase;
