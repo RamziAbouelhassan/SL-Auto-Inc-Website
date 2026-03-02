@@ -5,6 +5,15 @@
   const ARCHIVE_RETENTION_DAYS = 30;
   const API_SERVICE_NAME = "sl-auto-booking-api";
   const DEFAULT_API_PORT = "4310";
+  const DETAIL_MODES = {
+    desk: "desk",
+    calendar: "calendar",
+  };
+  const DESK_FILTERS = {
+    all: "all",
+    today: "today",
+    urgent: "urgent",
+  };
   const VIEWS = {
     inbox: "inbox",
     rejected: "rejected",
@@ -61,10 +70,18 @@
     currentView: VIEWS.inbox,
     archivedFilter: ARCHIVED_FILTERS.all,
     selectedBookingId: "",
+    detailMode: DETAIL_MODES.desk,
+    calendarMonth: getMonthStartValue(new Date()),
+    selectedCalendarDate: getTodayDateValue(),
+    deskSearchQuery: "",
+    deskFilter: DESK_FILTERS.all,
     manualDraft: createDefaultManualDraft(),
     isCreatingManual: false,
     manualSuccessMessage: "",
     showManualForm: false,
+    rescheduleDraft: createDefaultRescheduleDraft(),
+    isSavingReschedule: false,
+    showRescheduleForm: false,
     sectionOpen: {
       pending: false,
       accepted: false,
@@ -81,13 +98,51 @@
     day: "numeric",
     year: "numeric",
   });
+  const monthTitleFormatter = new Intl.DateTimeFormat("en-CA", {
+    month: "long",
+    year: "numeric",
+  });
+  const shortDateFormatter = new Intl.DateTimeFormat("en-CA", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+  const compactDateFormatter = new Intl.DateTimeFormat("en-CA", {
+    month: "short",
+    day: "numeric",
+  });
   const timeOnlyFormatter = new Intl.DateTimeFormat("en-CA", {
     timeStyle: "short",
   });
+  const weekdayFormatter = new Intl.DateTimeFormat("en-CA", {
+    weekday: "short",
+  });
+  const calendarWeekdayLabels = Array.from({ length: 7 }, (_, index) =>
+    weekdayFormatter.format(new Date(2024, 0, 7 + index))
+  );
 
   function formatDateInputValue(date) {
     const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
     return localDate.toISOString().slice(0, 10);
+  }
+
+  function getDateFromValue(value) {
+    if (!value) return null;
+    const parsed = new Date(`${value}T12:00:00`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  function getMonthStartValue(date) {
+    const monthDate = new Date(date);
+    monthDate.setHours(12, 0, 0, 0);
+    monthDate.setDate(1);
+    return formatDateInputValue(monthDate);
+  }
+
+  function getTodayDateValue() {
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    return formatDateInputValue(today);
   }
 
   function getNextBookableDateValue() {
@@ -120,6 +175,14 @@
     };
   }
 
+  function createDefaultRescheduleDraft() {
+    return {
+      bookingId: "",
+      preferredDate: getNextBookableDateValue(),
+      timeWindow: TIME_WINDOW_OPTIONS[3],
+    };
+  }
+
   function normalizeManualDraft(values = {}) {
     return {
       ...createDefaultManualDraft(),
@@ -129,9 +192,130 @@
     };
   }
 
+  function getBookingDateValue(booking) {
+    return booking?.preferredDate && getDateFromValue(booking.preferredDate) ? booking.preferredDate : "";
+  }
+
+  function sameMonth(dateValue, monthValue) {
+    return String(dateValue || "").slice(0, 7) === String(monthValue || "").slice(0, 7);
+  }
+
+  function getVisibleCalendarBookings() {
+    const counts = getCounts();
+    return [...counts.pending, ...counts.accepted].filter((booking) => getBookingDateValue(booking));
+  }
+
+  function getBookingsForCalendarDate(dateValue) {
+    return getVisibleCalendarBookings().filter((booking) => getBookingDateValue(booking) === dateValue);
+  }
+
+  function getBestCalendarDate(monthValue) {
+    const today = getTodayDateValue();
+    if (sameMonth(today, monthValue)) {
+      return today;
+    }
+
+    const monthBooking = getVisibleCalendarBookings()
+      .filter((booking) => sameMonth(getBookingDateValue(booking), monthValue))
+      .sort((left, right) => String(getBookingDateValue(left)).localeCompare(String(getBookingDateValue(right))))[0];
+    if (monthBooking) {
+      return getBookingDateValue(monthBooking);
+    }
+
+    return monthValue;
+  }
+
+  function syncCalendarToSelection() {
+    const selected = selectedBooking();
+    const selectedDate = getBookingDateValue(selected);
+    if (selectedDate) {
+      state.selectedCalendarDate = selectedDate;
+      state.calendarMonth = getMonthStartValue(getDateFromValue(selectedDate));
+      return;
+    }
+
+    if (!sameMonth(state.selectedCalendarDate, state.calendarMonth)) {
+      state.selectedCalendarDate = getBestCalendarDate(state.calendarMonth);
+    }
+  }
+
+  function setDetailMode(mode) {
+    if (!Object.values(DETAIL_MODES).includes(mode)) return;
+    state.detailMode = mode;
+
+    if (mode === DETAIL_MODES.calendar) {
+      syncCalendarToSelection();
+    }
+  }
+
+  function shiftCalendarMonth(monthDelta) {
+    const monthDate = getDateFromValue(state.calendarMonth) || getDateFromValue(getTodayDateValue()) || new Date();
+    monthDate.setMonth(monthDate.getMonth() + monthDelta);
+    monthDate.setDate(1);
+    state.calendarMonth = getMonthStartValue(monthDate);
+    state.selectedCalendarDate = getBestCalendarDate(state.calendarMonth);
+  }
+
+  function buildCalendarDays(monthValue) {
+    const monthDate = getDateFromValue(monthValue) || getDateFromValue(getTodayDateValue()) || new Date();
+    const calendarStart = new Date(monthDate);
+    calendarStart.setDate(1 - monthDate.getDay());
+
+    return Array.from({ length: 42 }, (_, index) => {
+      const date = new Date(calendarStart);
+      date.setDate(calendarStart.getDate() + index);
+      const dateValue = formatDateInputValue(date);
+      return {
+        date,
+        dateValue,
+        dayNumber: date.getDate(),
+        isCurrentMonth: sameMonth(dateValue, monthValue),
+        isToday: dateValue === getTodayDateValue(),
+        bookings: getBookingsForCalendarDate(dateValue),
+      };
+    });
+  }
+
+  function readManualDraft(form) {
+    if (!form) return normalizeManualDraft(state.manualDraft);
+
+    const formData = new FormData(form);
+    return normalizeManualDraft({
+      source: formData.get("source"),
+      name: formData.get("name"),
+      phone: formData.get("phone"),
+      email: formData.get("email"),
+      contactMethod: formData.get("contactMethod"),
+      year: formData.get("year"),
+      make: formData.get("make"),
+      model: formData.get("model"),
+      preferredDate: formData.get("preferredDate"),
+      timeWindow: formData.get("timeWindow"),
+      serviceType: formData.get("serviceType"),
+      concern: formData.get("concern"),
+      visitType: formData.get("visitType"),
+      urgency: formData.get("urgency"),
+    });
+  }
+
+  function readRescheduleDraft(form) {
+    if (!form) return { ...state.rescheduleDraft };
+
+    const formData = new FormData(form);
+    return {
+      bookingId: String(formData.get("bookingId") || "").trim(),
+      preferredDate: String(formData.get("preferredDate") || "").trim(),
+      timeWindow: String(formData.get("timeWindow") || "").trim(),
+    };
+  }
+
   document.addEventListener("DOMContentLoaded", init);
   window.addEventListener("hashchange", applyRouteFromHash);
   document.body.addEventListener("click", handleClick);
+  document.body.addEventListener("input", handleManualDraftChange);
+  document.body.addEventListener("input", handleDeskControlsChange);
+  document.body.addEventListener("change", handleManualDraftChange);
+  document.body.addEventListener("change", handleDeskControlsChange);
   document.body.addEventListener("submit", handleSubmit);
 
   function init() {
@@ -441,6 +625,37 @@
     return Math.ceil(remaining / (24 * 60 * 60 * 1000));
   }
 
+  function getOldestPendingBooking(bookings) {
+    return [...bookings]
+      .filter((booking) => getCreatedDate(booking))
+      .sort((left, right) => getCreatedDate(left) - getCreatedDate(right))[0] || null;
+  }
+
+  function getLatestAcceptedBooking(bookings) {
+    return [...bookings]
+      .filter((booking) => getCreatedDate(booking))
+      .sort((left, right) => getCreatedDate(right) - getCreatedDate(left))[0] || null;
+  }
+
+  function getNextScheduledBooking(bookings) {
+    const todayDateValue = getTodayDateValue();
+    return [...bookings]
+      .filter((booking) => {
+        const bookingDate = getBookingDateValue(booking);
+        return bookingDate && bookingDate >= todayDateValue;
+      })
+      .sort((left, right) => {
+        const dateCompare = String(getBookingDateValue(left)).localeCompare(String(getBookingDateValue(right)));
+        if (dateCompare !== 0) return dateCompare;
+        return String(left.createdAt || "").localeCompare(String(right.createdAt || ""));
+      })[0] || null;
+  }
+
+  function formatCompactDate(value) {
+    const date = getDateFromValue(value);
+    return date ? compactDateFormatter.format(date) : "Not set";
+  }
+
   function getCounts() {
     const pending = state.bookings.filter((booking) => isPending(booking) && !isArchived(booking));
     const accepted = state.bookings.filter((booking) => getResolvedStatus(booking) === "accepted" && !isArchived(booking));
@@ -478,6 +693,70 @@
     return [...counts.pending, ...counts.accepted];
   }
 
+  function normalizeSearchText(value) {
+    return String(value || "").trim().toLowerCase();
+  }
+
+  function bookingMatchesDeskSearch(booking) {
+    const query = normalizeSearchText(state.deskSearchQuery);
+    if (!query) return true;
+
+    const haystack = [
+      booking.name,
+      booking.phone,
+      booking.email,
+      booking.make,
+      booking.model,
+      booking.year,
+      booking.serviceType,
+      booking.concern,
+      booking.preferredDate,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return haystack.includes(query);
+  }
+
+  function bookingMatchesDeskFilter(booking) {
+    if (state.deskFilter === DESK_FILTERS.today) {
+      return getBookingDateValue(booking) === getTodayDateValue();
+    }
+
+    if (state.deskFilter === DESK_FILTERS.urgent) {
+      return isUrgent(booking);
+    }
+
+    return true;
+  }
+
+  function getDeskFilteredBookings(bookings) {
+    return bookings.filter((booking) => bookingMatchesDeskSearch(booking) && bookingMatchesDeskFilter(booking));
+  }
+
+  function hasDeskFiltersApplied() {
+    return Boolean(normalizeSearchText(state.deskSearchQuery)) || state.deskFilter !== DESK_FILTERS.all;
+  }
+
+  function deskSelectedBooking() {
+    const booking = selectedBooking();
+    if (!booking) return null;
+    return getDeskFilteredBookings(getVisibleBookingsForView()).some((entry) => entry.id === booking.id) ? booking : null;
+  }
+
+  function openRescheduleDialog(bookingId) {
+    const booking = state.bookings.find((entry) => entry.id === bookingId);
+    if (!booking || isArchived(booking)) return;
+
+    state.rescheduleDraft = {
+      bookingId: booking.id,
+      preferredDate: getBookingDateValue(booking) || getNextBookableDateValue(),
+      timeWindow: booking.timeWindow || TIME_WINDOW_OPTIONS[3],
+    };
+    state.showRescheduleForm = true;
+  }
+
   function reconcileSelection() {
     const visibleBookings = getVisibleBookingsForView();
     const bookingIsStillVisible = visibleBookings.some((booking) => booking.id === state.selectedBookingId);
@@ -498,6 +777,12 @@
 
   function selectBooking(bookingId) {
     state.selectedBookingId = bookingId;
+    const booking = selectedBooking();
+    const bookingDate = getBookingDateValue(booking);
+    if (bookingDate) {
+      state.selectedCalendarDate = bookingDate;
+      state.calendarMonth = getMonthStartValue(getDateFromValue(bookingDate));
+    }
     setHash(state.currentView, bookingId);
     render();
   }
@@ -512,22 +797,16 @@
 
   function render() {
     const counts = getCounts();
-    const booking = selectedBooking();
+    const booking = deskSelectedBooking();
 
     app.innerHTML = `
       ${renderTopGrid(counts)}
       ${state.manualSuccessMessage ? `<section class="success-banner">${escapeHtml(state.manualSuccessMessage)}</section>` : ""}
       ${state.errorMessage ? renderErrorBanner(state.errorMessage) : ""}
-      ${renderViewTabs(counts)}
-      <section class="workspace-grid">
-        <div class="section-stack">
-          ${renderCurrentView(counts)}
-        </div>
-        <aside class="detail-panel">
-          ${renderDetailPanel(booking)}
-        </aside>
-      </section>
+      ${renderModeSwitcher()}
+      ${state.detailMode === DETAIL_MODES.calendar ? renderCalendarWorkspace() : renderDeskWorkspace(counts, booking)}
       ${state.showManualForm ? renderManualEntryDialog() : ""}
+      ${state.showRescheduleForm ? renderRescheduleDialog() : ""}
     `;
   }
 
@@ -537,10 +816,16 @@
     const lastUpdated = state.lastLoadedAt
       ? `Updated ${timeOnlyFormatter.format(state.lastLoadedAt)}`
       : "No successful sync yet";
+    const oldestPending = getOldestPendingBooking(counts.pending);
+    const latestAccepted = getLatestAcceptedBooking(counts.accepted);
+    const nextScheduled = getNextScheduledBooking([...counts.pending, ...counts.accepted]);
+    const todaysBookingCount = [...counts.pending, ...counts.accepted].filter(
+      (booking) => getBookingDateValue(booking) === getTodayDateValue()
+    ).length;
 
     return `
       <section class="top-grid">
-        <article class="panel">
+        <article class="panel top-summary-panel">
           <div class="panel-heading">
             <div>
               <h2>Booking inbox</h2>
@@ -552,18 +837,43 @@
             </div>
           </div>
 
-          <div class="stat-pills">
+          <div class="stat-pills summary-pills">
             <span class="pill pill-${connectionTone}">${state.isLoading ? '<span class="loading-dot"></span>' : ""}${connectionLabel}</span>
-            <span class="pill pill-blue">${counts.pending.length} pending</span>
-            <span class="pill pill-green">${counts.accepted.length} accepted</span>
-            <span class="pill pill-gray">${counts.archived.length} archived</span>
+            <span class="pill pill-blue summary-pill-wide">${counts.pending.length} pending</span>
+            <span class="pill pill-green summary-pill-wide">${counts.accepted.length} accepted</span>
             ${state.bookings.some(isUrgent) ? '<span class="pill pill-red">Urgent bookings</span>' : ""}
+          </div>
+
+          <div class="summary-insights">
+            <article class="summary-insight">
+              <span class="summary-insight-label">Today</span>
+              <strong>${todaysBookingCount}</strong>
+              <p>${todaysBookingCount === 1 ? "booking on today’s board" : "bookings on today’s board"}</p>
+            </article>
+
+            <article class="summary-insight">
+              <span class="summary-insight-label">Oldest pending</span>
+              <strong>${escapeHtml(oldestPending?.name || "None waiting")}</strong>
+              <p>${escapeHtml(oldestPending ? formatCompactDate(oldestPending.preferredDate) : "No pending requests.")}</p>
+            </article>
+
+            <article class="summary-insight">
+              <span class="summary-insight-label">Last accepted</span>
+              <strong>${escapeHtml(latestAccepted?.name || "Nothing accepted")}</strong>
+              <p>${escapeHtml(latestAccepted ? latestAccepted.serviceType || "Accepted booking" : "Accept a booking to see it here.")}</p>
+            </article>
+
+            <article class="summary-insight">
+              <span class="summary-insight-label">Next scheduled</span>
+              <strong>${escapeHtml(nextScheduled ? formatCompactDate(nextScheduled.preferredDate) : "Open schedule")}</strong>
+              <p>${escapeHtml(nextScheduled ? nextScheduled.name || "Upcoming booking" : "No upcoming bookings yet.")}</p>
+            </article>
           </div>
 
           <p class="muted-text">${lastUpdated}</p>
         </article>
 
-        <article class="panel">
+        <article class="panel top-connection-panel">
           <div class="panel-heading">
             <div>
               <h2>API connection</h2>
@@ -764,6 +1074,83 @@
     `;
   }
 
+  function renderModeSwitcher() {
+    return `
+      <nav class="workspace-mode-switcher" aria-label="Workspace mode">
+        ${renderDetailModeButton(DETAIL_MODES.desk, "Booking desk")}
+        ${renderDetailModeButton(DETAIL_MODES.calendar, "Calendar")}
+      </nav>
+    `;
+  }
+
+  function renderDetailModeButton(mode, label) {
+    const activeClass = state.detailMode === mode ? "is-active" : "";
+    return `
+      <button class="segmented-button workspace-mode-button ${activeClass}" type="button" data-detail-mode="${mode}">
+        ${escapeHtml(label)}
+      </button>
+    `;
+  }
+
+  function renderDeskWorkspace(counts, booking) {
+    return `
+      ${renderViewTabs(counts)}
+      ${renderDeskControls()}
+      <section class="workspace-grid">
+        <div class="section-stack">
+          ${renderCurrentView(counts)}
+        </div>
+        <aside class="detail-panel">
+          ${renderDetailPanel(booking)}
+        </aside>
+      </section>
+    `;
+  }
+
+  function renderCalendarWorkspace() {
+    return `
+      <section class="calendar-workspace">
+        ${renderCalendarPanel()}
+      </section>
+    `;
+  }
+
+  function renderDeskControls() {
+    return `
+      <section class="panel desk-controls-panel">
+        <div class="desk-controls-grid">
+          <label class="desk-search-field" for="deskSearchQuery">
+            <span class="field-label">Search bookings</span>
+            <input
+              class="text-input"
+              id="deskSearchQuery"
+              type="text"
+              data-desk-search="true"
+              value="${escapeHtml(state.deskSearchQuery)}"
+              placeholder="Search name, phone, vehicle, or service"
+              autocomplete="off"
+            />
+          </label>
+
+          <div class="desk-filter-group" role="tablist" aria-label="Desk filters">
+            ${renderDeskFilterButton(DESK_FILTERS.all, "All")}
+            ${renderDeskFilterButton(DESK_FILTERS.today, "Today")}
+            ${renderDeskFilterButton(DESK_FILTERS.urgent, "Urgent")}
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderDeskFilterButton(filter, label) {
+    const activeClass = state.deskFilter === filter ? "is-active" : "";
+    return `
+      <button class="segmented-button ${activeClass}" type="button" data-desk-filter="${filter}">
+        ${escapeHtml(label)}
+      </button>
+    `;
+  }
+
   function renderCurrentView(counts) {
     if (state.currentView === VIEWS.rejected) {
       return renderRejectedView(counts.rejected);
@@ -778,13 +1165,17 @@
 
   function renderInboxView(counts) {
     const empty = !state.isLoading && state.bookings.length === 0;
+    const pendingBookings = getDeskFilteredBookings(counts.pending);
+    const acceptedBookings = getDeskFilteredBookings(counts.accepted);
+    const hasResults = pendingBookings.length || acceptedBookings.length;
 
     return `
       ${state.isLoading && state.bookings.length === 0 ? renderEmptyState("Loading bookings", "Pulling the latest requests from the booking API.") : ""}
       ${empty ? renderEmptyState("No bookings yet", "Once requests arrive, pending and accepted work will show up here.") : ""}
       ${!empty ? `
-        ${renderBookingSection("pending", "Pending", "Needs a decision", counts.pending, "No pending bookings right now.", true)}
-        ${renderBookingSection("accepted", "Accepted", "Approved and still active", counts.accepted, "No accepted bookings yet.", true)}
+        ${!hasResults && hasDeskFiltersApplied() ? renderEmptyState("No matches", "Try a different search or clear the current desk filter.") : ""}
+        ${renderBookingSection("pending", "Pending", "Needs a decision", pendingBookings, "No pending bookings right now.", true)}
+        ${renderBookingSection("accepted", "Accepted", "Approved and still active", acceptedBookings, "No accepted bookings yet.", true)}
         <article class="panel">
           <div class="section-heading">
             <div>
@@ -803,16 +1194,17 @@
   }
 
   function renderRejectedView(rejectedBookings) {
+    const filteredRejectedBookings = getDeskFilteredBookings(rejectedBookings);
     return `
       <article class="panel notice-card">
         <p>Rejected bookings stay out of the way here until you archive them or bring them back into the active workflow.</p>
       </article>
-      ${renderBookingSection("rejected", "Rejected", "Previously declined requests", rejectedBookings, "No rejected bookings.")}
+      ${renderBookingSection("rejected", "Rejected", "Previously declined requests", filteredRejectedBookings, hasDeskFiltersApplied() ? "No rejected bookings match the current search." : "No rejected bookings.")}
     `;
   }
 
   function renderArchivedView(archivedBookings) {
-    const filteredBookings = getVisibleBookingsForView();
+    const filteredBookings = getDeskFilteredBookings(getVisibleBookingsForView());
 
     return `
       <article class="panel">
@@ -837,7 +1229,7 @@
             "Archive list",
             "Filtered records",
             filteredBookings,
-            "No archived bookings for this filter."
+            hasDeskFiltersApplied() ? "No archived bookings match the current search." : "No archived bookings for this filter."
           )}
     `;
   }
@@ -952,12 +1344,15 @@
       buttons.push(renderActionButton("Bring back", "blue", booking.id, "restore", updating));
       buttons.push(renderActionButton("Delete permanently", "red", booking.id, "delete", updating));
     } else if (isPending(booking)) {
+      buttons.push(renderActionButton("Reschedule", "blue", booking.id, "reschedule", updating));
       buttons.push(renderActionButton("Accept", "green", booking.id, "accept", updating));
       buttons.push(renderActionButton("Reject", "red", booking.id, "reject", updating));
     } else if (getResolvedStatus(booking) === "accepted") {
+      buttons.push(renderActionButton("Reschedule", "blue", booking.id, "reschedule", updating));
       buttons.push(renderActionButton("Archive", "gray", booking.id, "archive", updating));
       buttons.push(renderActionButton("Mark rejected", "red", booking.id, "reject", updating));
     } else {
+      buttons.push(renderActionButton("Reschedule", "blue", booking.id, "reschedule", updating));
       buttons.push(renderActionButton("Accept", "green", booking.id, "accept", updating));
       buttons.push(renderActionButton("Archive", "gray", booking.id, "archive", updating));
     }
@@ -989,13 +1384,182 @@
     return `${archivedText} Deletes in ${daysRemaining} day${daysRemaining === 1 ? "" : "s"}.`;
   }
 
+  function renderCalendarPanel() {
+    const visibleBookings = getVisibleCalendarBookings();
+    const calendarDays = buildCalendarDays(state.calendarMonth);
+    const selectedDate = sameMonth(state.selectedCalendarDate, state.calendarMonth)
+      ? state.selectedCalendarDate
+      : getBestCalendarDate(state.calendarMonth);
+    const agendaBookings = getBookingsForCalendarDate(selectedDate);
+    const monthDate = getDateFromValue(state.calendarMonth) || getDateFromValue(getTodayDateValue()) || new Date();
+    const monthBookings = visibleBookings.filter((booking) => sameMonth(getBookingDateValue(booking), state.calendarMonth));
+    const dayLabel = shortDateFormatter.format(getDateFromValue(selectedDate) || monthDate);
+    return `
+      <div class="panel calendar-panel">
+        <div class="calendar-stack">
+          <section class="calendar-header">
+            <div>
+              <p class="calendar-kicker">Schedule board</p>
+              <h2>${escapeHtml(monthTitleFormatter.format(monthDate))}</h2>
+              <p>${monthBookings.length} booking${monthBookings.length === 1 ? "" : "s"} scheduled in this month.</p>
+            </div>
+
+            <div class="calendar-toolbar">
+              <button class="ghost-button calendar-nav-button" type="button" data-calendar-nav="prev">Prev</button>
+              <button class="muted-button calendar-nav-button" type="button" data-calendar-nav="today">Today</button>
+              <button class="ghost-button calendar-nav-button" type="button" data-calendar-nav="next">Next</button>
+            </div>
+          </section>
+
+          <div class="calendar-summary">
+            <span class="pill pill-blue">${visibleBookings.length} scheduled</span>
+            <span class="pill pill-green">${monthBookings.filter((booking) => getResolvedStatus(booking) === "accepted").length} accepted</span>
+            <span class="pill pill-red">${monthBookings.filter(isUrgent).length} urgent</span>
+          </div>
+
+          <section class="calendar-board">
+            <div class="calendar-grid-shell">
+              <div class="calendar-grid calendar-grid-labels" aria-hidden="true">
+                ${calendarWeekdayLabels.map((label) => `<span class="calendar-weekday">${escapeHtml(label)}</span>`).join("")}
+              </div>
+
+              <div class="calendar-grid calendar-grid-days">
+                ${calendarDays.map((day) => renderCalendarDay(day, selectedDate)).join("")}
+              </div>
+            </div>
+
+            <aside class="calendar-drawer">
+              <section class="calendar-agenda">
+                <div class="calendar-agenda-head">
+                  <div>
+                    <h3>${escapeHtml(dayLabel)}</h3>
+                    <p>${agendaBookings.length ? `${agendaBookings.length} booking${agendaBookings.length === 1 ? "" : "s"} on deck.` : "No bookings scheduled for this day."}</p>
+                  </div>
+                  <span class="mini-count">${agendaBookings.length}</span>
+                </div>
+
+                ${agendaBookings.length
+                  ? `<div class="calendar-agenda-list">${agendaBookings
+                      .sort((left, right) => String(left.timeWindow || "").localeCompare(String(right.timeWindow || "")))
+                      .map(renderCalendarAgendaItem)
+                      .join("")}</div>`
+                  : renderEmptyState("Open day", "Pick another date or add a booking to start filling the calendar.")}
+              </section>
+            </aside>
+          </section>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderCalendarDay(day, selectedDate) {
+    const classes = [
+      "calendar-day",
+      day.isCurrentMonth ? "is-current-month" : "is-outside-month",
+      day.isToday ? "is-today" : "",
+      day.dateValue === selectedDate ? "is-selected" : "",
+      day.bookings.length ? "has-bookings" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    return `
+      <button class="${classes}" type="button" data-calendar-date="${day.dateValue}">
+        <span class="calendar-day-top">
+          <span class="calendar-day-number">${day.dayNumber}</span>
+          ${day.bookings.length ? `<span class="calendar-day-count">${day.bookings.length}</span>` : ""}
+        </span>
+        <span class="calendar-day-events">
+          ${day.bookings
+            .slice(0, 2)
+            .map((booking) => {
+              const status = getResolvedStatus(booking);
+              return `<span class="calendar-day-pill is-${status}">${escapeHtml(booking.name || booking.serviceType || "Booking")}</span>`;
+            })
+            .join("")}
+          ${day.bookings.length > 2 ? `<span class="calendar-day-more">+${day.bookings.length - 2} more</span>` : ""}
+        </span>
+      </button>
+    `;
+  }
+
+  function renderCalendarAgendaItem(booking) {
+    const statusMeta = getStatusMeta(booking);
+    const status = getResolvedStatus(booking);
+    return `
+      <article class="calendar-agenda-item is-${status}">
+        <button class="calendar-agenda-main" type="button" data-calendar-booking="${booking.id}">
+          <div class="calendar-agenda-copy">
+            <strong>${escapeHtml(booking.serviceType || "Booking")}</strong>
+            <span>${escapeHtml(booking.name || "Unnamed booking")} · ${escapeHtml(getVehicleLabel(booking) || "Vehicle details missing")}</span>
+            <span>${escapeHtml(booking.timeWindow || "Time flexible")}</span>
+          </div>
+        </button>
+        <div class="calendar-agenda-side">
+          <div class="calendar-agenda-badges">
+            <span class="badge badge-${statusMeta.tone}">${statusMeta.label}</span>
+            ${isUrgent(booking) ? '<span class="badge badge-red">Urgent</span>' : ""}
+          </div>
+          <button class="ghost-button calendar-reschedule-button" type="button" data-action="reschedule" data-booking-id="${booking.id}">
+            Reschedule
+          </button>
+        </div>
+      </article>
+    `;
+  }
+
+  function renderRescheduleDialog() {
+    const draft = state.rescheduleDraft;
+    const booking = state.bookings.find((entry) => entry.id === draft.bookingId);
+
+    return `
+      <section class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="reschedule-booking-title">
+        <article class="panel modal-dialog modal-dialog-compact">
+          <div class="panel-heading">
+            <div>
+              <h2 id="reschedule-booking-title">Quick reschedule</h2>
+              <p>${escapeHtml(booking ? `${booking.name || "Booking"} · ${booking.serviceType || "Service"}` : "Adjust the booking date and time window.")}</p>
+            </div>
+            <div class="modal-actions">
+              <button class="ghost-button modal-close" type="button" data-action="close-reschedule">Close</button>
+            </div>
+          </div>
+
+          <form class="manual-form" data-form="reschedule-booking">
+            <input type="hidden" name="bookingId" value="${escapeHtml(draft.bookingId)}" />
+
+            <div class="manual-form-grid">
+              <label>
+                <span class="field-label">Preferred date</span>
+                <input class="text-input" type="date" name="preferredDate" value="${escapeHtml(draft.preferredDate)}" required />
+              </label>
+
+              <label>
+                <span class="field-label">Time window</span>
+                <select class="text-input" name="timeWindow" required>
+                  ${renderSelectOptions(TIME_WINDOW_OPTIONS, draft.timeWindow)}
+                </select>
+              </label>
+            </div>
+
+            <div class="manual-form-actions">
+              <button class="primary-button" type="submit" ${state.isSavingReschedule ? "disabled" : ""}>
+                ${state.isSavingReschedule ? "Saving..." : "Save schedule"}
+              </button>
+            </div>
+          </form>
+        </article>
+      </section>
+    `;
+  }
+
   function renderDetailPanel(booking) {
     if (!booking) {
       return `
         <div class="panel">
           <div class="empty-state">
-            <h2 class="placeholder-title">No booking selected</h2>
-            <p>Choose a booking from the current list to review customer details, vehicle info, and the available actions.</p>
+            <h2 class="placeholder-title">Select a booking to view details.</h2>
+            <p>Pick any request from the desk to review customer info, timing, and actions.</p>
           </div>
         </div>
       `;
@@ -1105,6 +1669,22 @@
   }
 
   async function handleClick(event) {
+    const modalBackdrop = event.target.closest(".modal-backdrop");
+    if (modalBackdrop && event.target === modalBackdrop) {
+      const manualForm = modalBackdrop.querySelector('[data-form="manual-booking"]');
+      const rescheduleForm = modalBackdrop.querySelector('[data-form="reschedule-booking"]');
+      if (manualForm) {
+        state.manualDraft = readManualDraft(manualForm);
+        state.showManualForm = false;
+      }
+      if (rescheduleForm) {
+        state.rescheduleDraft = readRescheduleDraft(rescheduleForm);
+        state.showRescheduleForm = false;
+      }
+      render();
+      return;
+    }
+
     const sectionToggle = event.target.closest("[data-section-toggle]");
     if (sectionToggle) {
       event.preventDefault();
@@ -1136,7 +1716,16 @@
 
       if (action === "close-manual") {
         event.preventDefault();
+        state.manualDraft = readManualDraft(document.querySelector('[data-form="manual-booking"]'));
         state.showManualForm = false;
+        render();
+        return;
+      }
+
+      if (action === "close-reschedule") {
+        event.preventDefault();
+        state.rescheduleDraft = readRescheduleDraft(document.querySelector('[data-form="reschedule-booking"]'));
+        state.showRescheduleForm = false;
         render();
         return;
       }
@@ -1151,6 +1740,12 @@
 
       if (!bookingId) return;
       event.preventDefault();
+
+      if (action === "reschedule") {
+        openRescheduleDialog(bookingId);
+        render();
+        return;
+      }
 
       const baseUrl = normalizeBaseUrl(state.apiBaseUrl);
 
@@ -1214,6 +1809,59 @@
       return;
     }
 
+    const deskFilterButton = event.target.closest("[data-desk-filter]");
+    if (deskFilterButton) {
+      event.preventDefault();
+      state.deskFilter = deskFilterButton.dataset.deskFilter || DESK_FILTERS.all;
+      render();
+      return;
+    }
+
+    const detailModeButton = event.target.closest("[data-detail-mode]");
+    if (detailModeButton) {
+      event.preventDefault();
+      setDetailMode(detailModeButton.dataset.detailMode || DETAIL_MODES.desk);
+      render();
+      return;
+    }
+
+    const calendarNavButton = event.target.closest("[data-calendar-nav]");
+    if (calendarNavButton) {
+      event.preventDefault();
+      const direction = calendarNavButton.dataset.calendarNav;
+      if (direction === "prev") {
+        shiftCalendarMonth(-1);
+      } else if (direction === "next") {
+        shiftCalendarMonth(1);
+      } else {
+        state.calendarMonth = getMonthStartValue(new Date());
+        state.selectedCalendarDate = getBestCalendarDate(state.calendarMonth);
+      }
+      render();
+      return;
+    }
+
+    const calendarBookingButton = event.target.closest("[data-calendar-booking]");
+    if (calendarBookingButton) {
+      event.preventDefault();
+      setDetailMode(DETAIL_MODES.desk);
+      selectBooking(calendarBookingButton.dataset.calendarBooking || "");
+      return;
+    }
+
+    const calendarDayButton = event.target.closest("[data-calendar-date]");
+    if (calendarDayButton) {
+      event.preventDefault();
+      const dateValue = calendarDayButton.dataset.calendarDate || "";
+      if (!dateValue) return;
+      state.selectedCalendarDate = dateValue;
+      if (!sameMonth(dateValue, state.calendarMonth)) {
+        state.calendarMonth = getMonthStartValue(getDateFromValue(dateValue));
+      }
+      render();
+      return;
+    }
+
     const filterButton = event.target.closest("[data-filter]");
     if (filterButton) {
       state.archivedFilter = filterButton.dataset.filter || ARCHIVED_FILTERS.all;
@@ -1234,29 +1882,32 @@
     }
   }
 
+  function handleManualDraftChange(event) {
+    const manualForm = event.target.closest('[data-form="manual-booking"]');
+    if (!manualForm) return;
+    state.manualDraft = readManualDraft(manualForm);
+  }
+
+  function handleDeskControlsChange(event) {
+    const searchInput = event.target.closest("[data-desk-search]");
+    if (searchInput) {
+      state.deskSearchQuery = searchInput.value || "";
+      render();
+      return;
+    }
+
+    const rescheduleForm = event.target.closest('[data-form="reschedule-booking"]');
+    if (rescheduleForm) {
+      state.rescheduleDraft = readRescheduleDraft(rescheduleForm);
+    }
+  }
+
   async function handleSubmit(event) {
     const manualForm = event.target.closest('[data-form="manual-booking"]');
     if (manualForm) {
       event.preventDefault();
 
-      const formData = new FormData(manualForm);
-      const manualDraft = normalizeManualDraft({
-        source: formData.get("source"),
-        name: formData.get("name"),
-        phone: formData.get("phone"),
-        email: formData.get("email"),
-        contactMethod: formData.get("contactMethod"),
-        year: formData.get("year"),
-        make: formData.get("make"),
-        model: formData.get("model"),
-        preferredDate: formData.get("preferredDate"),
-        timeWindow: formData.get("timeWindow"),
-        serviceType: formData.get("serviceType"),
-        concern: formData.get("concern"),
-        visitType: formData.get("visitType"),
-        urgency: formData.get("urgency"),
-      });
-
+      const manualDraft = readManualDraft(manualForm);
       state.manualDraft = manualDraft;
       state.manualSuccessMessage = "";
 
@@ -1300,6 +1951,73 @@
         state.errorMessage = error?.message || "Could not save manual booking.";
       } finally {
         state.isCreatingManual = false;
+        render();
+      }
+      return;
+    }
+
+    const rescheduleForm = event.target.closest('[data-form="reschedule-booking"]');
+    if (rescheduleForm) {
+      event.preventDefault();
+      const nextDraft = readRescheduleDraft(rescheduleForm);
+      state.rescheduleDraft = nextDraft;
+
+      if (!rescheduleForm.reportValidity()) {
+        return;
+      }
+
+      state.isSavingReschedule = true;
+      state.errorMessage = "";
+      render();
+
+      try {
+        const booking = state.bookings.find((entry) => entry.id === nextDraft.bookingId);
+        if (!booking) {
+          throw new Error("Booking not found.");
+        }
+
+        const resolvedBaseUrl = await resolveWorkingBaseUrl(state.apiBaseUrl);
+        state.apiBaseUrl = resolvedBaseUrl;
+        window.localStorage.setItem(STORAGE_KEY, resolvedBaseUrl);
+
+        const response = await fetch(`${resolvedBaseUrl}/api/bookings/${encodeURIComponent(nextDraft.bookingId)}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: booking.name,
+            phone: booking.phone,
+            email: booking.email,
+            contactMethod: booking.contactMethod,
+            year: booking.year,
+            make: booking.make,
+            model: booking.model,
+            preferredDate: nextDraft.preferredDate,
+            timeWindow: nextDraft.timeWindow,
+            serviceType: booking.serviceType,
+            concern: booking.concern,
+            visitType: booking.visitType,
+            urgency: booking.urgency,
+          }),
+        });
+        const payload = await parseResponse(response, "Could not reschedule booking.");
+
+        if (payload.booking) {
+          upsertBooking(payload.booking);
+          state.selectedBookingId = payload.booking.id;
+          const bookingDate = getBookingDateValue(payload.booking);
+          if (bookingDate) {
+            state.selectedCalendarDate = bookingDate;
+            state.calendarMonth = getMonthStartValue(getDateFromValue(bookingDate));
+          }
+        }
+
+        state.showRescheduleForm = false;
+      } catch (error) {
+        state.errorMessage = error?.message || "Could not reschedule booking.";
+      } finally {
+        state.isSavingReschedule = false;
         render();
       }
       return;

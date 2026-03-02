@@ -962,8 +962,8 @@ body.mobile-quick-actions-visible .mobile-quick-actions {
 .service-pills {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
 .service-pill {
@@ -995,21 +995,22 @@ body.mobile-quick-actions-visible .mobile-quick-actions {
 
 .booking-form {
   display: grid;
-  gap: 14px;
+  gap: 18px;
 }
 
 .form-grid {
   display: grid;
-  gap: 12px;
+  gap: 16px;
 }
 
 .form-grid.two {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
 }
 
 .field {
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
 .field > span:not(.field-help) {
@@ -1023,29 +1024,62 @@ body.mobile-quick-actions-visible .mobile-quick-actions {
   font-weight: 500;
   color: var(--muted);
   line-height: 1.4;
+  margin-top: -2px;
 }
 
-.field input,
-.field select,
-.field textarea {
+.booking-form .field input,
+.booking-form .field select,
+.booking-form .field textarea {
   width: 100%;
   border: 1px solid #cfd7e1;
-  border-radius: 12px;
-  padding: 11px 12px;
+  border-radius: 18px;
+  min-height: 4.4rem;
+  padding: 0 1.35rem;
   background: #fff;
   color: var(--text);
   font: inherit;
+  font-size: 1.05rem;
+  line-height: 1.4;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.field textarea {
-  resize: vertical;
-  min-height: 120px;
+.booking-form .field input[type="number"],
+.booking-form .field select {
+  appearance: none;
+  -webkit-appearance: none;
 }
 
-.field input:focus,
-.field select:focus,
-.field textarea:focus {
+.booking-form .field input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.booking-form .field input[type="number"]::-webkit-outer-spin-button,
+.booking-form .field input[type="number"]::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.booking-form .field select {
+  padding-right: 3.8rem;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--text) 50%),
+    linear-gradient(135deg, var(--text) 50%, transparent 50%);
+  background-position:
+    calc(100% - 1.7rem) calc(50% - 0.18rem),
+    calc(100% - 1.25rem) calc(50% - 0.18rem);
+  background-size: 0.55rem 0.55rem, 0.55rem 0.55rem;
+  background-repeat: no-repeat;
+}
+
+.booking-form .field textarea {
+  resize: vertical;
+  min-height: 14rem;
+  padding: 1rem 1.35rem;
+}
+
+.booking-form .field input:focus,
+.booking-form .field select:focus,
+.booking-form .field textarea:focus {
   outline: none;
   border-color: rgba(228, 87, 46, 0.55);
   box-shadow: 0 0 0 4px rgba(228, 87, 46, 0.1);

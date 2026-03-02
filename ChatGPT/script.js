@@ -306,26 +306,120 @@ if (serviceTypeEl && servicePills.length) {
 
 if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl) {
   const bookingSubmitBtn = bookingForm.querySelector('button[type="submit"]');
+  const API_BASE_STORAGE_KEY = "sl-auto-api-base";
+  const API_SERVICE_NAME = "sl-auto-booking-api";
+  const LOCAL_API_PORTS = ["3000", "4310"];
   const isLoopbackHost = (hostname) => hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  const isPrivateIpv4Host = (hostname) =>
+    /^10\./.test(hostname) ||
+    /^192\.168\./.test(hostname) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
   let currentBookingId = "";
   let isEditingBooking = false;
-  const getBookingApiBase = () => {
+  const normalizeBaseUrl = (value) => String(value || "").trim().replace(/\/+$/, "");
+  const loadStoredBookingApiBase = () => {
     try {
-      const saved = window.localStorage.getItem("sl-auto-api-base");
-      if (saved && saved.trim()) return saved.trim().replace(/\/+$/, "");
+      const saved = window.localStorage.getItem(API_BASE_STORAGE_KEY);
+      if (saved && saved.trim()) return normalizeBaseUrl(saved);
     } catch (error) {
       // Ignore storage errors.
     }
 
+    return "";
+  };
+  const persistBookingApiBase = (baseUrl) => {
+    try {
+      window.localStorage.setItem(API_BASE_STORAGE_KEY, normalizeBaseUrl(baseUrl));
+    } catch (error) {
+      // Ignore storage errors.
+    }
+  };
+  const getBookingApiBase = () => {
+    const storedBaseUrl = loadStoredBookingApiBase();
+    if (storedBaseUrl) return storedBaseUrl;
+
     if (/^https?:$/i.test(window.location.protocol) && window.location.origin && window.location.origin !== "null") {
-      // Local editor preview servers often run on a different port than the API.
-      if (isLoopbackHost(window.location.hostname) && window.location.port && window.location.port !== "3000") {
-        return `${window.location.protocol}//${window.location.hostname}:3000`;
-      }
       return window.location.origin;
     }
 
     return "http://localhost:3000";
+  };
+  const isBookingApi = async (baseUrl) => {
+    try {
+      const response = await fetch(`${normalizeBaseUrl(baseUrl)}/health`);
+      if (!response.ok) return false;
+
+      const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+      if (!contentType.includes("application/json")) return false;
+
+      const payload = await response.json();
+      return payload?.service === API_SERVICE_NAME;
+    } catch (error) {
+      return false;
+    }
+  };
+  const getFallbackBookingApiBases = (baseUrl) => {
+    const fallbacks = new Set();
+
+    try {
+      const parsedUrl = new URL(normalizeBaseUrl(baseUrl));
+      fallbacks.add(parsedUrl.origin);
+
+      if (isLoopbackHost(parsedUrl.hostname) || isPrivateIpv4Host(parsedUrl.hostname)) {
+        LOCAL_API_PORTS.forEach((port) => {
+          const candidate = new URL(parsedUrl.origin);
+          candidate.port = port;
+          fallbacks.add(candidate.origin);
+        });
+      }
+
+      if (parsedUrl.hostname === "localhost") {
+        LOCAL_API_PORTS.forEach((port) => {
+          fallbacks.add(`http://127.0.0.1:${port}`);
+        });
+      }
+
+      if (parsedUrl.hostname === "127.0.0.1") {
+        LOCAL_API_PORTS.forEach((port) => {
+          fallbacks.add(`http://localhost:${port}`);
+        });
+      }
+    } catch (error) {
+      LOCAL_API_PORTS.forEach((port) => {
+        fallbacks.add(`http://localhost:${port}`);
+        fallbacks.add(`http://127.0.0.1:${port}`);
+      });
+    }
+
+    return Array.from(fallbacks).map(normalizeBaseUrl).filter(Boolean);
+  };
+  const resolveWorkingBookingApiBase = async (baseUrl) => {
+    const requestedBaseUrl = normalizeBaseUrl(baseUrl) || getBookingApiBase();
+    const attemptedBases = [];
+    const seen = new Set();
+
+    const tryCandidate = async (candidate) => {
+      const normalizedCandidate = normalizeBaseUrl(candidate);
+      if (!normalizedCandidate || seen.has(normalizedCandidate)) return null;
+      seen.add(normalizedCandidate);
+      attemptedBases.push(normalizedCandidate);
+      return (await isBookingApi(normalizedCandidate)) ? normalizedCandidate : null;
+    };
+
+    const directMatch = await tryCandidate(requestedBaseUrl);
+    if (directMatch) {
+      return { baseUrl: directMatch, attemptedBases, matched: true };
+    }
+
+    const fallbackBaseUrls = getFallbackBookingApiBases(requestedBaseUrl);
+    for (const candidate of fallbackBaseUrls) {
+      const fallbackMatch = await tryCandidate(candidate);
+      if (fallbackMatch) {
+        return { baseUrl: fallbackMatch, attemptedBases, matched: true };
+      }
+    }
+
+    return { baseUrl: requestedBaseUrl, attemptedBases, matched: false };
   };
 
   const formatDateForDisplay = (value) => {
@@ -415,13 +509,20 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
     }
 
     const isUpdateRequest = Boolean(isEditingBooking && currentBookingId);
-    const requestUrl = isUpdateRequest
-      ? `${getBookingApiBase()}/api/bookings/${encodeURIComponent(currentBookingId)}`
-      : `${getBookingApiBase()}/api/bookings`;
-
     syncSubmitButton(true);
 
+    let resolvedApiBase = getBookingApiBase();
+    let attemptedApiBases = [resolvedApiBase];
+
     try {
+      const apiResolution = await resolveWorkingBookingApiBase(resolvedApiBase);
+      resolvedApiBase = apiResolution.baseUrl;
+      attemptedApiBases = apiResolution.attemptedBases.length ? apiResolution.attemptedBases : attemptedApiBases;
+
+      const requestUrl = isUpdateRequest
+        ? `${resolvedApiBase}/api/bookings/${encodeURIComponent(currentBookingId)}`
+        : `${resolvedApiBase}/api/bookings`;
+
       const response = await fetch(requestUrl, {
         method: isUpdateRequest ? "PATCH" : "POST",
         headers: {
@@ -450,13 +551,12 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
 
       currentBookingId = payload.id || (payload.booking && payload.booking.id) || currentBookingId;
       isEditingBooking = false;
+      persistBookingApiBase(resolvedApiBase);
     } catch (error) {
       const message = error && error.message ? error.message : "Could not connect to booking API.";
+      const triedLabel = attemptedApiBases.length ? attemptedApiBases.join("\n- ") : resolvedApiBase;
       window.alert(
-        message +
-          "\n\nMake sure the booking API is running and reachable at " +
-          getBookingApiBase() +
-          "."
+        `${message}\n\nTried booking API at:\n- ${triedLabel}`
       );
       syncSubmitButton(false);
       return;
