@@ -1,0 +1,69 @@
+{
+  "" : {
+    "diagnostics" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/SLAutoAdmin-primary.dia",
+    "emit-module-dependencies" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/SLAutoAdmin-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/SLAutoAdmin-primary-emit-module.dia",
+    "pch" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/SLAutoAdmin-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/SLAutoAdmin-primary.swiftdeps"
+  },
+  "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/GeneratedAssetSymbols.dia",
+    "index-unit-output-path" : "/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftdeps",
+    "swiftmodule" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/GeneratedAssetSymbols~partial.swiftmodule"
+  },
+  "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/ChatGPT/SLAutoAdmin/SLAutoAdmin/Booking.swift" : {
+    "const-values" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/Booking.swiftconstvalues",
+    "dependencies" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/Booking.d",
+    "diagnostics" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/Booking.dia",
+    "index-unit-output-path" : "/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/Booking.o",
+    "llvm-bc" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/Booking.bc",
+    "object" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/Booking.o",
+    "swift-dependencies" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/Booking.swiftdeps",
+    "swiftmodule" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/Booking~partial.swiftmodule"
+  },
+  "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/ChatGPT/SLAutoAdmin/SLAutoAdmin/BookingDetailView.swift" : {
+    "const-values" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/BookingDetailView.swiftconstvalues",
+    "dependencies" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/BookingDetailView.d",
+    "diagnostics" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/BookingDetailView.dia",
+    "index-unit-output-path" : "/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/BookingDetailView.o",
+    "llvm-bc" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/BookingDetailView.bc",
+    "object" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/BookingDetailView.o",
+    "swift-dependencies" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/BookingDetailView.swiftdeps",
+    "swiftmodule" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/BookingDetailView~partial.swiftmodule"
+  },
+  "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/ChatGPT/SLAutoAdmin/SLAutoAdmin/BookingListView.swift" : {
+    "const-values" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/BookingListView.swiftconstvalues",
+    "dependencies" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/BookingListView.d",
+    "diagnostics" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/BookingListView.dia",
+    "index-unit-output-path" : "/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/BookingListView.o",
+    "llvm-bc" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/BookingListView.bc",
+    "object" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/BookingListView.o",
+    "swift-dependencies" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/BookingListView.swiftdeps",
+    "swiftmodule" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/BookingListView~partial.swiftmodule"
+  },
+  "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/ChatGPT/SLAutoAdmin/SLAutoAdmin/BookingStore.swift" : {
+    "const-values" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/BookingStore.swiftconstvalues",
+    "dependencies" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/BookingStore.d",
+    "diagnostics" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/BookingStore.dia",
+    "index-unit-output-path" : "/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/BookingStore.o",
+    "llvm-bc" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/BookingStore.bc",
+    "object" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/BookingStore.o",
+    "swift-dependencies" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/BookingStore.swiftdeps",
+    "swiftmodule" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/BookingStore~partial.swiftmodule"
+  },
+  "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/ChatGPT/SLAutoAdmin/SLAutoAdmin/SLAutoAdminApp.swift" : {
+    "const-values" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/SLAutoAdminApp.swiftconstvalues",
+    "dependencies" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/SLAutoAdminApp.d",
+    "diagnostics" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/SLAutoAdminApp.dia",
+    "index-unit-output-path" : "/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/SLAutoAdminApp.o",
+    "llvm-bc" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/SLAutoAdminApp.bc",
+    "object" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/SLAutoAdminApp.o",
+    "swift-dependencies" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/SLAutoAdminApp.swiftdeps",
+    "swiftmodule" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/SLAutoAdminRenamed/Build/Intermediates.noindex/SLAutoAdmin.build/Debug-iphonesimulator/SLAutoAdmin.build/Objects-normal/arm64/SLAutoAdminApp~partial.swiftmodule"
+  }
+}

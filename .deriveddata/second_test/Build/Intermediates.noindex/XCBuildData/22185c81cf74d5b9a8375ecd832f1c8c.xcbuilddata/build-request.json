@@ -1,0 +1,64 @@
+{
+  "buildCommand" : {
+    "command" : "build",
+    "skipDependencies" : false,
+    "style" : "buildOnly"
+  },
+  "configuredTargets" : [
+    {
+      "guid" : "f2b509a20169159486e79fcf3e68405c81e0a3b8cca7be13c01d086562e11165"
+    }
+  ],
+  "containerPath" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/ChatGPT/second_test/second_test.xcodeproj",
+  "continueBuildingAfterErrors" : false,
+  "dependencyScope" : "workspace",
+  "enableIndexBuildArena" : false,
+  "hideShellScriptEnvironment" : false,
+  "parameters" : {
+    "action" : "build",
+    "activeArchitecture" : "undefined_arch",
+    "activeRunDestination" : {
+      "disableOnlyActiveArch" : true,
+      "platform" : "iphonesimulator",
+      "sdk" : "iphonesimulator26.1",
+      "sdkVariant" : "iphonesimulator",
+      "supportedArchitectures" : [
+        "i386",
+        "x86_64"
+      ],
+      "targetArchitecture" : "undefined_arch"
+    },
+    "arenaInfo" : {
+      "buildIntermediatesPath" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/second_test/Build/Intermediates.noindex",
+      "buildProductsPath" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/second_test/Build/Products",
+      "derivedDataPath" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/second_test",
+      "indexDataStoreFolderPath" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/second_test/Index.noindex/DataStore",
+      "indexEnableDataStore" : true,
+      "indexPCHPath" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/second_test/Index.noindex/PrecompiledHeaders",
+      "pchPath" : "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/.deriveddata/second_test/Build/Intermediates.noindex/PrecompiledHeaders"
+    },
+    "configurationName" : "Debug",
+    "overrides" : {
+      "commandLine" : {
+        "table" : {
+          "CODE_SIGNING_ALLOWED" : "NO",
+          "SDKROOT" : "iphonesimulator26.1"
+        }
+      },
+      "synthesized" : {
+        "table" : {
+          "ACTION" : "build",
+          "ENABLE_PREVIEWS" : "NO",
+          "ENABLE_XOJIT_PREVIEWS" : "YES",
+          "ONLY_ACTIVE_ARCH" : "YES"
+        }
+      }
+    }
+  },
+  "schemeCommand" : "launch",
+  "showNonLoggedProgress" : true,
+  "useDryRun" : false,
+  "useImplicitDependencies" : true,
+  "useLegacyBuildLocations" : false,
+  "useParallelTargets" : true
+}

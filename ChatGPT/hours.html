@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hours | SL Auto Inc Calgary</title>
+    <meta
+      name="description"
+      content="Check current shop hours for SL Auto Inc in Calgary and call ahead to confirm same-day availability."
+    />
+    <meta name="theme-color" content="#1f232b" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#top">Skip to main content</a>
+    <header class="header">
+      <div class="container nav">
+        <a class="brand" href="index.html" aria-label="SL Auto Inc home">
+          <span class="brand-mark">SL</span>
+          <span class="brand-text">Auto Inc</span>
+        </a>
+
+        <button
+          class="menu-btn"
+          id="menuBtn"
+          aria-expanded="false"
+          aria-controls="menu"
+          aria-haspopup="true"
+          aria-label="Open navigation menu"
+        >
+          Menu
+        </button>
+
+        <nav class="menu" id="menu" aria-label="Primary navigation">
+          <a href="index.html">Home</a>
+          <a href="services.html">Services</a>
+          <a href="why-us.html">Why Us</a>
+          <a href="process.html">Process</a>
+          <a href="hours.html" aria-current="page">Hours</a>
+          <a href="contact.html">Contact</a>
+          <a href="booking.html">Book Online</a>
+        </nav>
+
+        <a class="call-btn" href="tel:+15872283688">Book by phone</a>
+      </div>
+    </header>
+
+    <main id="top" tabindex="-1">
+      <section class="section page-banner">
+        <div class="container page-banner-grid">
+          <div class="page-banner-copy">
+            <p class="eyebrow">Hours</p>
+            <h1>Shop hours and visit planning</h1>
+            <p class="lead">
+              Check the current weekly schedule here, then call ahead if you plan to come in the same day for a
+              diagnostic concern or urgent repair question.
+            </p>
+            <div class="cta-row">
+              <a class="btn primary" href="tel:+15872283688">Call the shop</a>
+              <a class="btn" href="contact.html">Get directions</a>
+            </div>
+          </div>
+
+          <aside class="page-banner-card" aria-label="Visit planning">
+            <h2>Best use of the hours page</h2>
+            <ul class="plain-list">
+              <li>Check if the shop is open now in Calgary</li>
+              <li>Confirm timing before a same-day visit</li>
+              <li>Plan around diagnostic or booking questions</li>
+              <li>Use Contact for address and map details</li>
+            </ul>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section alt" id="hours">
+        <div class="container">
+          <div class="section-head">
+            <h2>Hours</h2>
+            <p class="muted">Hours can change. Call ahead to confirm if you plan to come in the same day.</p>
+            <div class="hours-status" id="hoursStatus" aria-live="polite">Checking shop hours in Calgary...</div>
+          </div>
+
+          <div class="hours-layout">
+            <div class="hours">
+              <div class="hours-row" data-day="1" data-open="10:00" data-close="19:00"><span>Monday</span><span>10:00 AM - 7:00 PM</span></div>
+              <div class="hours-row" data-day="2" data-open="10:00" data-close="19:00"><span>Tuesday</span><span>10:00 AM - 7:00 PM</span></div>
+              <div class="hours-row" data-day="3" data-open="10:00" data-close="19:00"><span>Wednesday</span><span>10:00 AM - 7:00 PM</span></div>
+              <div class="hours-row" data-day="4" data-open="10:00" data-close="19:00"><span>Thursday</span><span>10:00 AM - 7:00 PM</span></div>
+              <div class="hours-row" data-day="5" data-open="10:00" data-close="18:00"><span>Friday</span><span>10:00 AM - 6:00 PM</span></div>
+              <div class="hours-row" data-day="6" data-closed="true"><span>Saturday</span><span>Closed</span></div>
+              <div class="hours-row" data-day="0" data-open="09:00" data-close="17:00"><span>Sunday</span><span>9:00 AM - 5:00 PM</span></div>
+            </div>
+
+            <aside class="hours-note-card">
+              <h3>Planning a visit</h3>
+              <p>
+                For diagnostic concerns, warning lights, or no-start issues, calling first helps us plan the right type
+                of appointment and reduce wait time.
+              </p>
+              <p class="small">
+                Need the address or map link? Open the contact page for directions and shop details.
+              </p>
+            </aside>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container footer-row">
+        <div>&copy; <span id="year"></span> SL Auto Inc</div>
+        <div class="small muted">McKenzie Towne / SE Calgary</div>
+      </div>
+    </footer>
+
+    <nav class="mobile-quick-actions" aria-label="Quick actions">
+      <a class="btn primary" href="tel:+15872283688">Call now</a>
+      <a
+        class="btn"
+        target="_blank"
+        rel="noopener noreferrer"
+        href="https://www.google.com/maps/search/?api=1&query=SL%20Auto%20Inc%204400%20Elgin%20Ave%20SE%20Calgary%20AB"
+      >
+        Directions
+      </a>
+    </nav>
+
+    <script src="script.js" defer></script>
+  </body>
+</html>

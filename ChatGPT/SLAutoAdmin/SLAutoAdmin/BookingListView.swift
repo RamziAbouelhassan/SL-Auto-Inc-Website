@@ -5,58 +5,59 @@ struct BookingListView: View {
     @State private var hasLoaded = false
     @FocusState private var apiFieldFocused: Bool
 
+    private var pendingBookings: [Booking] {
+        store.bookings.filter { $0.isPending && !$0.isArchived }
+    }
+
+    private var acceptedBookings: [Booking] {
+        store.bookings.filter { $0.resolvedStatus == .accepted && !$0.isArchived }
+    }
+
+    private var rejectedBookings: [Booking] {
+        store.bookings.filter { $0.resolvedStatus == .rejected && !$0.isArchived }
+    }
+
+    private var archivedBookings: [Booking] {
+        store.bookings.filter(\.isArchived)
+    }
+
+    private var activeBookingCount: Int {
+        pendingBookings.count + acceptedBookings.count + rejectedBookings.count
+    }
+
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [Color(.systemGroupedBackground), Color(.secondarySystemGroupedBackground)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 16) {
+                dashboardCard
+                connectionCard
 
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 14) {
-                    dashboardCard
-                    connectionCard
-
-                    if let error = store.errorMessage {
-                        errorBanner(error)
-                    }
-
-                    sectionLabel("Bookings")
-
-                    if store.isLoading && store.bookings.isEmpty {
-                        loadingRow
-                    } else if store.bookings.isEmpty {
-                        emptyStateRow
-                    } else {
-                        ForEach(store.bookings) { booking in
-                            NavigationLink(value: booking.id) {
-                                BookingRowCard(booking: booking)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
+                if let error = store.errorMessage {
+                    errorBanner(error)
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 10)
-                .padding(.bottom, 24)
+
+                Text("Bookings")
+                    .font(.title2.weight(.bold))
+                    .padding(.top, 6)
+
+                if store.isLoading && store.bookings.isEmpty {
+                    loadingRow
+                } else if store.bookings.isEmpty {
+                    emptyStateRow
+                } else {
+                    pendingSection
+                    acceptedSection
+                    foldersSection
+                }
             }
-            .refreshable {
-                await store.loadBookings()
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 28)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .ignoresSafeArea(edges: [.top, .bottom])
+        .background(Color(uiColor: .systemBackground))
         .navigationTitle("Bookings")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(for: String.self) { id in
-            if let booking = store.bookings.first(where: { $0.id == id }) {
-                BookingDetailView(booking: booking)
-            } else {
-                ContentUnavailableView("Booking Not Found", systemImage: "exclamationmark.bubble")
-            }
-        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -69,10 +70,13 @@ struct BookingListView: View {
             }
         }
         .toolbarBackground(.visible, for: .navigationBar)
-        .toolbarBackground(Color(.systemGroupedBackground), for: .navigationBar)
+        .toolbarBackground(Color(uiColor: .systemBackground), for: .navigationBar)
         .task {
             guard !hasLoaded else { return }
             hasLoaded = true
+            await store.loadBookings()
+        }
+        .refreshable {
             await store.loadBookings()
         }
     }
@@ -88,7 +92,7 @@ struct BookingListView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Text("\(store.bookings.count)")
+                Text("\(activeBookingCount)")
                     .font(.title2.weight(.bold))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
@@ -96,12 +100,16 @@ struct BookingListView: View {
                     .foregroundStyle(.blue)
             }
 
-            HStack(spacing: 10) {
+            WrappingFlowLayout(spacing: 10, rowSpacing: 10) {
                 statusPill(
                     title: store.isLoading ? "Loading" : "Connected",
                     systemImage: store.isLoading ? "arrow.triangle.2.circlepath" : "bolt.horizontal.circle.fill",
                     color: store.isLoading ? .orange : .green
                 )
+
+                countPill(title: "\(pendingBookings.count) pending", color: .blue)
+                countPill(title: "\(acceptedBookings.count) accepted", color: .green)
+                countPill(title: "\(archivedBookings.count) archived", color: .gray)
 
                 if store.bookings.contains(where: \.isUrgent) {
                     statusPill(title: "Urgent", systemImage: "exclamationmark.triangle.fill", color: .red)
@@ -119,7 +127,9 @@ struct BookingListView: View {
 
     private var connectionCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionLabel("API Connection", insideCard: true)
+            Text("API Connection")
+                .font(.headline)
+                .foregroundStyle(.secondary)
 
             HStack(spacing: 10) {
                 Image(systemName: "network")
@@ -151,6 +161,133 @@ struct BookingListView: View {
         .cardContainer()
     }
 
+    private var pendingSection: some View {
+        bookingSection(
+            title: "Pending",
+            subtitle: "Needs a decision",
+            bookings: pendingBookings,
+            emptyMessage: "No pending bookings right now.",
+            tint: .blue
+        ) { booking in
+            HStack(spacing: 10) {
+                BookingActionButton(
+                    title: "Accept",
+                    systemImage: "checkmark.circle.fill",
+                    tint: .green,
+                    isLoading: store.isUpdating(booking.id)
+                ) {
+                    Task { await store.updateBookingStatus(id: booking.id, to: .accepted) }
+                }
+
+                BookingActionButton(
+                    title: "Reject",
+                    systemImage: "xmark.circle.fill",
+                    tint: .red
+                ) {
+                    Task { await store.updateBookingStatus(id: booking.id, to: .rejected) }
+                }
+            }
+            .disabled(store.isUpdating(booking.id))
+        }
+    }
+
+    private var acceptedSection: some View {
+        bookingSection(
+            title: "Accepted",
+            subtitle: "Approved and still active",
+            bookings: acceptedBookings,
+            emptyMessage: "No accepted bookings yet.",
+            tint: .green
+        ) { booking in
+            BookingActionButton(
+                title: "Archive",
+                systemImage: "archivebox.fill",
+                tint: .gray,
+                isLoading: store.isUpdating(booking.id)
+            ) {
+                Task { await store.updateBookingArchive(id: booking.id, archived: true) }
+            }
+            .disabled(store.isUpdating(booking.id))
+        }
+    }
+
+    private var foldersSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Folders")
+                .font(.headline)
+
+            NavigationLink {
+                RejectedBookingsView()
+                    .environmentObject(store)
+            } label: {
+                FolderEntryCard(
+                    title: "Rejected",
+                    subtitle: "Hidden away from the main workflow",
+                    count: rejectedBookings.count,
+                    tint: .gray
+                )
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink {
+                ArchivedBookingsView()
+                    .environmentObject(store)
+            } label: {
+                FolderEntryCard(
+                    title: "Archived",
+                    subtitle: "Auto-deletes after 30 days",
+                    count: archivedBookings.count,
+                    tint: .gray
+                )
+            }
+            .buttonStyle(.plain)
+        }
+        .cardContainer()
+    }
+
+    @ViewBuilder
+    private func bookingSection<ActionContent: View>(
+        title: String,
+        subtitle: String,
+        bookings: [Booking],
+        emptyMessage: String,
+        tint: Color,
+        @ViewBuilder actionContent: @escaping (Booking) -> ActionContent
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.headline)
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                countPill(title: "\(bookings.count)", color: tint)
+            }
+
+            if bookings.isEmpty {
+                sectionEmptyState(emptyMessage)
+            } else {
+                ForEach(bookings) { booking in
+                    VStack(alignment: .leading, spacing: 10) {
+                        NavigationLink {
+                            BookingDetailView(bookingID: booking.id)
+                                .environmentObject(store)
+                        } label: {
+                            BookingRowCard(booking: booking)
+                        }
+                        .buttonStyle(.plain)
+
+                        actionContent(booking)
+                    }
+                }
+            }
+        }
+        .cardContainer()
+    }
+
     private var loadingRow: some View {
         HStack(spacing: 12) {
             ProgressView()
@@ -175,12 +312,21 @@ struct BookingListView: View {
         .cardContainer(padding: 0)
     }
 
+    private func sectionEmptyState(_ message: String) -> some View {
+        Text(message)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(Color(uiColor: .tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
     private func errorBanner(_ message: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.red)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Load failed")
+                Text("Request failed")
                     .font(.headline)
                     .foregroundStyle(.red)
                 Text(message)
@@ -197,13 +343,6 @@ struct BookingListView: View {
         )
     }
 
-    private func sectionLabel(_ text: String, insideCard: Bool = false) -> some View {
-        Text(text)
-            .font(insideCard ? .subheadline.weight(.semibold) : .headline)
-            .foregroundStyle(insideCard ? .secondary : .primary)
-            .padding(.leading, insideCard ? 0 : 2)
-    }
-
     private func statusPill(title: String, systemImage: String, color: Color) -> some View {
         HStack(spacing: 6) {
             Image(systemName: systemImage)
@@ -215,95 +354,13 @@ struct BookingListView: View {
         .background(color.opacity(0.12), in: Capsule())
         .foregroundStyle(color)
     }
-}
 
-private struct BookingRowCard: View {
-    let booking: Booking
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 10) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(booking.name)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                    Text(booking.vehicleLabel)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Text(booking.formattedPhone)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                BookingBadge(text: booking.statusLabel, tint: booking.isUrgent ? .red : .blue)
-            }
-
-            HStack(spacing: 8) {
-                BookingChip(text: booking.serviceType, systemImage: "wrench.and.screwdriver")
-                if booking.isUrgent {
-                    BookingChip(text: "Urgent", systemImage: "exclamationmark.triangle.fill", tint: .red)
-                }
-            }
-
-            HStack {
-                Label(booking.preferredDateDisplay, systemImage: "calendar")
-                Spacer()
-                Label(booking.timeWindow, systemImage: "clock")
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-
-            Text(booking.concernDisplay)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-        }
-        .padding(14)
-        .cardContainer(padding: 0)
-    }
-}
-
-private struct BookingChip: View {
-    let text: String
-    let systemImage: String
-    var tint: Color = .orange
-
-    var body: some View {
-        HStack(spacing: 5) {
-            Image(systemName: systemImage)
-            Text(text)
-        }
-        .font(.caption.weight(.medium))
-        .lineLimit(1)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(tint.opacity(0.12), in: Capsule())
-        .foregroundStyle(tint)
-    }
-}
-
-private struct BookingBadge: View {
-    let text: String
-    let tint: Color
-
-    var body: some View {
-        Text(text)
+    private func countPill(title: String, color: Color) -> some View {
+        Text(title)
             .font(.caption.weight(.semibold))
             .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(tint.opacity(0.12), in: Capsule())
-            .foregroundStyle(tint)
-    }
-}
-
-extension View {
-    func cardContainer(padding: CGFloat = 16) -> some View {
-        self
-            .padding(padding)
-            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Color.primary.opacity(0.05), lineWidth: 1)
-            )
+            .padding(.vertical, 6)
+            .background(color.opacity(0.12), in: Capsule())
+            .foregroundStyle(color)
     }
 }

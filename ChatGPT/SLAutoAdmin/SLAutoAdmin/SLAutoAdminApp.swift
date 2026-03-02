@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 @main
 @MainActor
@@ -7,14 +8,11 @@ struct SLAutoAdminApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ZStack {
-                Color(.systemGroupedBackground).ignoresSafeArea()
-
-                NavigationStack {
-                    BookingListView()
-                        .environmentObject(store)
-                }
+            NavigationStack {
+                BookingListView()
             }
+            .environmentObject(store)
+            .background(Color(uiColor: .systemBackground).ignoresSafeArea())
         }
     }
 }

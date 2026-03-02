@@ -1,0 +1,16 @@
+{
+  "source": "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/ChatGPT/second_test/second_test/BookingDetailView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Concern",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 41
+        }
+      }
+    ]
+  },
+  "version": 1
+}

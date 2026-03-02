@@ -1,0 +1,16 @@
+{
+  "source": "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/ChatGPT/SLAutoAdmin/SLAutoAdmin/BookingUI.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 163
+        }
+      }
+    ]
+  },
+  "version": 1
+}

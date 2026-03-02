@@ -1,0 +1,28 @@
+[build]
+  publish = "ChatGPT"
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/health"
+  to = "/.netlify/functions/health"
+  status = 200
+
+[[redirects]]
+  from = "/api/bookings"
+  to = "/.netlify/functions/bookings"
+  status = 200
+
+[[redirects]]
+  from = "/api/bookings/:id/status"
+  to = "/.netlify/functions/booking-status?id=:id"
+  status = 200
+
+[[redirects]]
+  from = "/api/bookings/:id/archive"
+  to = "/.netlify/functions/booking-archive?id=:id"
+  status = 200
+
+[[redirects]]
+  from = "/api/bookings/:id"
+  to = "/.netlify/functions/booking-delete?id=:id"
+  status = 200

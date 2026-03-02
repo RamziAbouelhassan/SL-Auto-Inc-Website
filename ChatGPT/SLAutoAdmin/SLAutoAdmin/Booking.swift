@@ -1,8 +1,27 @@
 import Foundation
 
+enum BookingStatus: String, CaseIterable, Codable {
+    case new
+    case accepted
+    case rejected
+
+    var label: String {
+        switch self {
+        case .new:
+            return "New"
+        case .accepted:
+            return "Accepted"
+        case .rejected:
+            return "Rejected"
+        }
+    }
+}
+
 struct Booking: Identifiable, Codable {
     let id: String
     let createdAt: String
+    let updatedAt: String?
+    let archivedAt: String?
     let source: String?
     let status: String?
     let name: String
@@ -42,12 +61,22 @@ struct Booking: Identifiable, Codable {
     }
 
     var createdDate: Date? {
-        ISO8601DateFormatter().date(from: createdAt)
+        DateParser.iso8601.date(from: createdAt) ?? DateParser.iso8601NoFractionalSeconds.date(from: createdAt)
+    }
+
+    var archivedDate: Date? {
+        guard let archivedAt, !archivedAt.isEmpty else { return nil }
+        return DateParser.iso8601.date(from: archivedAt) ?? DateParser.iso8601NoFractionalSeconds.date(from: archivedAt)
     }
 
     var createdAtDisplay: String {
         guard let date = createdDate else { return createdAt }
         return DateFormatter.bookingDateTime.string(from: date)
+    }
+
+    var archivedAtDisplay: String? {
+        guard let archivedDate else { return nil }
+        return DateFormatter.bookingDateTime.string(from: archivedDate)
     }
 
     var preferredDateDisplay: String {
@@ -56,8 +85,7 @@ struct Booking: Identifiable, Codable {
     }
 
     var statusLabel: String {
-        if let status, !status.isEmpty { return status.capitalized }
-        return "New"
+        resolvedStatus.label
     }
 
     var isUrgent: Bool {
@@ -69,11 +97,58 @@ struct Booking: Identifiable, Codable {
         let trimmed = concern.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? "No concern provided (routine service request)." : trimmed
     }
+
+    var resolvedStatus: BookingStatus {
+        BookingStatus(rawValue: (status ?? "").lowercased()) ?? .new
+    }
+
+    var isPending: Bool {
+        resolvedStatus == .new
+    }
+
+    var isArchived: Bool {
+        archivedDate != nil
+    }
+
+    var archiveBucketLabel: String {
+        resolvedStatus == .accepted ? "Completed" : "Rejected"
+    }
+
+    var daysUntilAutoDelete: Int? {
+        guard let archivedDate else { return nil }
+        let elapsed = Date().timeIntervalSince(archivedDate)
+        let remaining = max(0, (30 * 24 * 60 * 60) - elapsed)
+        return Int(ceil(remaining / (24 * 60 * 60)))
+    }
 }
 
 struct BookingAPIResponse: Codable {
     let ok: Bool
     let bookings: [Booking]
+}
+
+struct BookingMutationResponse: Codable {
+    let ok: Bool
+    let booking: Booking
+}
+
+struct BookingDeleteResponse: Codable {
+    let ok: Bool
+    let deletedId: String
+}
+
+private enum DateParser {
+    static let iso8601: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    static let iso8601NoFractionalSeconds: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
 }
 
 private extension DateFormatter {

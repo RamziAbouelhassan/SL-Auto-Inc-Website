@@ -1,0 +1,72 @@
+{
+  "source": "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/ChatGPT/Test/Test/Test/BookingDetailView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Concern",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 36
+        }
+      },
+      {
+        "comment": "",
+        "key": "Concern: %@",
+        "location": {
+          "startingColumn": 49,
+          "startingLine": 43
+        }
+      },
+      {
+        "comment": "",
+        "key": "Status: %@",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 76
+        }
+      },
+      {
+        "comment": "",
+        "key": "Preferred date: %@",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 81
+        }
+      },
+      {
+        "comment": "",
+        "key": "Time window: %@",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 83
+        }
+      },
+      {
+        "comment": "",
+        "key": "Urgent",
+        "location": {
+          "startingColumn": 64,
+          "startingLine": 92
+        }
+      },
+      {
+        "comment": "",
+        "key": "Info",
+        "location": {
+          "startingColumn": 75,
+          "startingLine": 92
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@: %@",
+        "location": {
+          "startingColumn": 37,
+          "startingLine": 124
+        }
+      }
+    ]
+  },
+  "version": 1
+}

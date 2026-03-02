@@ -1,9 +1,19 @@
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
-import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  BookingError,
+  createBooking,
+  deleteBooking,
+  getStorageDetails,
+  listBookings,
+  updateBooking,
+  updateBookingArchive,
+  updateBookingStatus,
+} from "./lib/booking-service.mjs";
 
 dotenv.config();
 
@@ -11,72 +21,38 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
 
+const HOST = (process.env.HOST || "0.0.0.0").trim();
 const PORT = Number(process.env.PORT || 3000);
 const CORS_ORIGIN = (process.env.CORS_ORIGIN || "").trim();
-const BOOKINGS_FILE = process.env.BOOKINGS_FILE || "./data/bookings.jsonl";
+const frontendRoot = path.resolve(__dirname, "..", "..");
 
-const storagePath = path.resolve(__dirname, "..", BOOKINGS_FILE);
-
-const allowedServiceTypes = new Set([
-  "Oil change / maintenance",
-  "Brake inspection / repair",
-  "Check engine light diagnosis",
-  "Battery / charging issue",
-  "Steering / suspension concern",
-  "Noise / vibration concern",
-  "Pre-trip / seasonal inspection",
-  "General diagnosis / other",
-]);
-
-const clean = (value) => String(value || "").trim();
-
-const sanitizeBooking = (payload) => ({
-  name: clean(payload.name),
-  phone: clean(payload.phone),
-  email: clean(payload.email),
-  contactMethod: clean(payload.contactMethod),
-  year: clean(payload.year),
-  make: clean(payload.make),
-  model: clean(payload.model),
-  preferredDate: clean(payload.preferredDate),
-  timeWindow: clean(payload.timeWindow),
-  serviceType: clean(payload.serviceType),
-  concern: clean(payload.concern),
-  visitType: clean(payload.visitType),
-  urgency: clean(payload.urgency),
-});
-
-const validateBooking = (booking) => {
-  const errors = [];
-
-  if (!booking.name) errors.push("Name is required.");
-  if (!booking.phone) errors.push("Phone number is required.");
-  if (!booking.contactMethod) errors.push("Preferred contact method is required.");
-  if (!booking.year) errors.push("Vehicle year is required.");
-  if (!booking.make) errors.push("Vehicle make is required.");
-  if (!booking.model) errors.push("Vehicle model is required.");
-  if (!booking.preferredDate) errors.push("Preferred date is required.");
-  if (!booking.timeWindow) errors.push("Preferred time window is required.");
-  if (!booking.serviceType) errors.push("Service type is required.");
-
-  if (booking.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(booking.email)) {
-    errors.push("Email is not valid.");
+const getAccessibleUrls = (host, port) => {
+  if (host !== "0.0.0.0" && host !== "::") {
+    return [host === "127.0.0.1" ? `http://localhost:${port}` : `http://${host}:${port}`];
   }
 
-  const yearNum = Number(booking.year);
-  if (!Number.isInteger(yearNum) || yearNum < 1980 || yearNum > 2035) {
-    errors.push("Vehicle year must be between 1980 and 2035.");
+  const urls = new Set([`http://localhost:${port}`]);
+  const interfaces = os.networkInterfaces();
+
+  Object.values(interfaces)
+    .flat()
+    .forEach((network) => {
+      if (!network || network.internal || network.family !== "IPv4") return;
+      urls.add(`http://${network.address}:${port}`);
+    });
+
+  return Array.from(urls);
+};
+
+const sendJsonError = (res, error, fallbackMessage) => {
+  if (error instanceof BookingError) {
+    const payload = { ok: false, error: error.message };
+    if (error.details?.length) payload.details = error.details;
+    return res.status(error.statusCode).json(payload);
   }
 
-  if (booking.serviceType && !allowedServiceTypes.has(booking.serviceType)) {
-    errors.push("Service type is not recognized.");
-  }
-
-  if (booking.concern.length > 2500) {
-    errors.push("Concern description is too long.");
-  }
-
-  return errors;
+  console.error(fallbackMessage, error);
+  return res.status(500).json({ ok: false, error: fallbackMessage });
 };
 
 app.use(
@@ -100,82 +76,104 @@ app.get("/health", (_req, res) => {
 
 app.get("/api/bookings", async (_req, res) => {
   try {
-    await fs.mkdir(path.dirname(storagePath), { recursive: true });
-
-    let raw = "";
-    try {
-      raw = await fs.readFile(storagePath, "utf8");
-    } catch (error) {
-      if (error && error.code === "ENOENT") {
-        return res.json({ ok: true, bookings: [] });
-      }
-      throw error;
-    }
-
-    const bookings = raw
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => {
-        try {
-          return JSON.parse(line);
-        } catch {
-          return null;
-        }
-      })
-      .filter(Boolean)
-      .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
-
-    return res.json({ ok: true, bookings });
+    return res.json({ ok: true, bookings: await listBookings() });
   } catch (error) {
-    console.error("Booking list failed:", error);
-    return res.status(500).json({ ok: false, error: "Server error while loading bookings." });
+    return sendJsonError(res, error, "Server error while loading bookings.");
+  }
+});
+
+app.patch("/api/bookings/:id/status", async (req, res) => {
+  try {
+    const updatedBooking = await updateBookingStatus(req.params.id, req.body.status);
+    return res.json({
+      ok: true,
+      booking: updatedBooking,
+      message: "Booking status updated.",
+    });
+  } catch (error) {
+    return sendJsonError(res, error, "Server error while updating booking status.");
+  }
+});
+
+app.patch("/api/bookings/:id/archive", async (req, res) => {
+  try {
+    const updatedBooking = await updateBookingArchive(req.params.id, req.body.archived);
+    return res.json({
+      ok: true,
+      booking: updatedBooking,
+      message: updatedBooking.archivedAt ? "Booking archived." : "Booking restored.",
+    });
+  } catch (error) {
+    return sendJsonError(res, error, "Server error while updating booking archive state.");
+  }
+});
+
+app.patch("/api/bookings/:id", async (req, res) => {
+  try {
+    const updatedBooking = await updateBooking(req.params.id, req.body || {});
+    return res.json({
+      ok: true,
+      booking: updatedBooking,
+      message: "Booking request updated.",
+    });
+  } catch (error) {
+    return sendJsonError(res, error, "Server error while updating booking request.");
+  }
+});
+
+app.delete("/api/bookings/:id", async (req, res) => {
+  try {
+    const { deletedId } = await deleteBooking(req.params.id);
+    return res.json({
+      ok: true,
+      deletedId,
+      message: "Booking permanently deleted.",
+    });
+  } catch (error) {
+    return sendJsonError(res, error, "Server error while deleting booking.");
   }
 });
 
 app.post("/api/bookings", async (req, res) => {
   try {
-    if (clean(req.body.website)) {
-      return res.status(400).json({ ok: false, error: "Spam rejected." });
-    }
-
-    const booking = sanitizeBooking(req.body);
-    const errors = validateBooking(booking);
-
-    if (errors.length) {
-      return res.status(400).json({ ok: false, error: "Validation failed.", details: errors });
-    }
-
-    const record = {
-      id: `bk_${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      source: clean(req.body.source) || "website",
-      status: "new",
-      ...booking,
-    };
-
-    await fs.mkdir(path.dirname(storagePath), { recursive: true });
-    await fs.appendFile(storagePath, JSON.stringify(record) + "\n", "utf8");
-
+    const record = await createBooking(req.body || {});
     return res.status(201).json({
       ok: true,
       id: record.id,
       message: "Booking request saved.",
     });
   } catch (error) {
-    console.error("Booking save failed:", error);
-    return res.status(500).json({
-      ok: false,
-      error: "Server error while saving booking request.",
-    });
+    return sendJsonError(res, error, "Server error while saving booking request.");
   }
 });
 
-app.use((req, res) => {
-  res.status(404).json({ ok: false, error: `Not found: ${req.method} ${req.path}` });
+app.use(
+  express.static(frontendRoot, {
+    extensions: ["html"],
+  })
+);
+
+app.get("/booking", (_req, res) => {
+  res.redirect(302, "/booking.html");
 });
 
-app.listen(PORT, () => {
-  console.log(`SL Auto booking API listening on http://localhost:${PORT}`);
-  console.log(`Booking storage file: ${storagePath}`);
+app.use((req, res) => {
+  if (req.path.startsWith("/api/") || req.path === "/health") {
+    return res.status(404).json({ ok: false, error: `Not found: ${req.method} ${req.path}` });
+  }
+
+  return res.status(404).type("text/plain").send(`Not found: ${req.method} ${req.path}`);
+});
+
+app.listen(PORT, HOST, () => {
+  console.log("SL Auto ChatGPT site available at:");
+  getAccessibleUrls(HOST, PORT).forEach((url) => {
+    console.log(`- ${url}`);
+  });
+  const storageDetails = getStorageDetails();
+  if (storageDetails.usingSupabase) {
+    console.log("Booking storage: Supabase");
+  } else {
+    console.log(`Booking storage file: ${storageDetails.bookingsFile}`);
+  }
 });

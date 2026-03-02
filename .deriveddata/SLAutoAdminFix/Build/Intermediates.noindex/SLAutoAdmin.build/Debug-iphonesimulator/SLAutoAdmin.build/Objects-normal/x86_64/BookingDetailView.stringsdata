@@ -1,0 +1,32 @@
+{
+  "source": "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/ChatGPT/SLAutoAdmin/SLAutoAdmin/BookingDetailView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Booking Not Found",
+        "location": {
+          "startingColumn": 40,
+          "startingLine": 69
+        }
+      },
+      {
+        "comment": "",
+        "key": "Concern",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 54
+        }
+      },
+      {
+        "comment": "",
+        "key": "This archived booking will be removed automatically in %lld day%@.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 132
+        }
+      }
+    ]
+  },
+  "version": 1
+}

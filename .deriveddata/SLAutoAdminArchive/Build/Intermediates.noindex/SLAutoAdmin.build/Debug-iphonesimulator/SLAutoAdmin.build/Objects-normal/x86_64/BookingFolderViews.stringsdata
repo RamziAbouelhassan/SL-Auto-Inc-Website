@@ -1,0 +1,80 @@
+{
+  "source": "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/ChatGPT/SLAutoAdmin/SLAutoAdmin/BookingFolderViews.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Rejected",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 78
+        }
+      },
+      {
+        "comment": "",
+        "key": "No rejected bookings.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 32
+        }
+      },
+      {
+        "comment": "",
+        "key": "Rejected bookings stay out of the way here until you archive them.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 22
+        }
+      },
+      {
+        "comment": "",
+        "key": "Archive anything you no longer want in the active rejected list.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 25
+        }
+      },
+      {
+        "comment": "",
+        "key": "Archived",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 160
+        }
+      },
+      {
+        "comment": "",
+        "key": "No archived bookings for this filter.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 120
+        }
+      },
+      {
+        "comment": "",
+        "key": "Archived filter",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 112
+        }
+      },
+      {
+        "comment": "",
+        "key": "Archived bookings delete themselves after 30 days.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 104
+        }
+      },
+      {
+        "comment": "",
+        "key": "Use permanent delete if you want something removed right now.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 106
+        }
+      }
+    ]
+  },
+  "version": 1
+}

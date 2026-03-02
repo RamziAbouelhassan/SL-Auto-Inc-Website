@@ -3,6 +3,7 @@ if (yearEl) yearEl.textContent = new Date().getFullYear();
 
 const menuBtn = document.getElementById("menuBtn");
 const menu = document.getElementById("menu");
+const mobileQuickActions = document.querySelector(".mobile-quick-actions");
 
 if (menuBtn && menu) {
   const setMenuOpen = (isOpen) => {
@@ -10,6 +11,7 @@ if (menuBtn && menu) {
     menuBtn.setAttribute("aria-expanded", String(isOpen));
     menuBtn.setAttribute("aria-label", isOpen ? "Close navigation menu" : "Open navigation menu");
     document.body.classList.toggle("menu-open", isOpen && window.innerWidth <= 920);
+    window.dispatchEvent(new Event("sl-auto:quick-actions-refresh"));
   };
 
   menuBtn.addEventListener("click", () => {
@@ -43,6 +45,40 @@ if (menuBtn && menu) {
       document.body.classList.remove("menu-open");
     }
   });
+}
+
+if (mobileQuickActions) {
+  let lastScrollY = window.scrollY;
+  let quickActionsVisible = window.scrollY < 32;
+
+  const updateMobileQuickActions = () => {
+    const isMobile = window.innerWidth <= 920;
+    const currentScrollY = window.scrollY;
+    const delta = currentScrollY - lastScrollY;
+    const nearTop = currentScrollY < 32;
+
+    if (!isMobile || document.body.classList.contains("menu-open")) {
+      document.body.classList.remove("mobile-quick-actions-visible");
+      lastScrollY = currentScrollY;
+      return;
+    }
+
+    if (nearTop) {
+      quickActionsVisible = true;
+    } else if (delta <= -10) {
+      quickActionsVisible = true;
+    } else if (delta >= 10) {
+      quickActionsVisible = false;
+    }
+
+    document.body.classList.toggle("mobile-quick-actions-visible", quickActionsVisible);
+    lastScrollY = currentScrollY;
+  };
+
+  updateMobileQuickActions();
+  window.addEventListener("scroll", updateMobileQuickActions, { passive: true });
+  window.addEventListener("resize", updateMobileQuickActions);
+  window.addEventListener("sl-auto:quick-actions-refresh", updateMobileQuickActions);
 }
 
 const hoursStatusEl = document.getElementById("hoursStatus");
@@ -187,10 +223,53 @@ const bookingSummaryEl = document.getElementById("bookingSummary");
 const editBookingBtn = document.getElementById("editBookingBtn");
 const servicePills = Array.from(document.querySelectorAll(".service-pill[data-service-choice]"));
 
+const CLOSED_BOOKING_WEEKDAY = 6;
+const parseBookingDate = (value) => {
+  if (!value) return null;
+  const parsed = new Date(`${value}T12:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+const formatDateInputValue = (date) => {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 10);
+};
+const isClosedBookingDate = (value) => {
+  const parsed = parseBookingDate(value);
+  return Boolean(parsed && parsed.getDay() === CLOSED_BOOKING_WEEKDAY);
+};
+const getNextBookableDate = (date) => {
+  const nextDate = new Date(date);
+  nextDate.setHours(12, 0, 0, 0);
+
+  while (nextDate.getDay() === CLOSED_BOOKING_WEEKDAY) {
+    nextDate.setDate(nextDate.getDate() + 1);
+  }
+
+  return nextDate;
+};
+
 if (preferredDateEl) {
-  const now = new Date();
-  const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
-  preferredDateEl.min = localDate.toISOString().slice(0, 10);
+  preferredDateEl.min = formatDateInputValue(getNextBookableDate(new Date()));
+
+  preferredDateEl.addEventListener("change", () => {
+    if (!preferredDateEl.value) {
+      preferredDateEl.setCustomValidity("");
+      return;
+    }
+
+    if (isClosedBookingDate(preferredDateEl.value)) {
+      preferredDateEl.value = "";
+      preferredDateEl.setCustomValidity("Saturday is closed. Please choose Sunday or a weekday.");
+      preferredDateEl.reportValidity();
+      return;
+    }
+
+    preferredDateEl.setCustomValidity("");
+  });
+
+  preferredDateEl.addEventListener("input", () => {
+    preferredDateEl.setCustomValidity("");
+  });
 }
 
 const setActiveServicePill = (value) => {
@@ -227,6 +306,9 @@ if (serviceTypeEl && servicePills.length) {
 
 if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl) {
   const bookingSubmitBtn = bookingForm.querySelector('button[type="submit"]');
+  const isLoopbackHost = (hostname) => hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  let currentBookingId = "";
+  let isEditingBooking = false;
   const getBookingApiBase = () => {
     try {
       const saved = window.localStorage.getItem("sl-auto-api-base");
@@ -234,6 +316,15 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
     } catch (error) {
       // Ignore storage errors.
     }
+
+    if (/^https?:$/i.test(window.location.protocol) && window.location.origin && window.location.origin !== "null") {
+      // Local editor preview servers often run on a different port than the API.
+      if (isLoopbackHost(window.location.hostname) && window.location.port && window.location.port !== "3000") {
+        return `${window.location.protocol}//${window.location.hostname}:3000`;
+      }
+      return window.location.origin;
+    }
+
     return "http://localhost:3000";
   };
 
@@ -267,6 +358,24 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
     return item;
   };
 
+  const getSubmitLabel = (isSaving) => {
+    if (isSaving) return isEditingBooking ? "Saving changes..." : "Submitting...";
+    return isEditingBooking ? "Save changes" : "Submit booking request";
+  };
+
+  const syncSubmitButton = (isSaving = false) => {
+    if (!bookingSubmitBtn) return;
+    bookingSubmitBtn.disabled = isSaving;
+    bookingSubmitBtn.textContent = getSubmitLabel(isSaving);
+  };
+
+  const focusBookingForm = () => {
+    const firstInput = bookingForm.querySelector('input:not([hidden]):not([type="hidden"]), select, textarea');
+    if (firstInput && typeof firstInput.focus === "function") {
+      firstInput.focus();
+    }
+  };
+
   bookingForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
@@ -298,14 +407,23 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
       website: String(formData.get("website") || "").trim(),
     };
 
-    if (bookingSubmitBtn) {
-      bookingSubmitBtn.disabled = true;
-      bookingSubmitBtn.textContent = "Submitting...";
+    if (preferredDateEl && isClosedBookingDate(details.preferredDate)) {
+      preferredDateEl.value = "";
+      preferredDateEl.setCustomValidity("Saturday is closed. Please choose Sunday or a weekday.");
+      preferredDateEl.reportValidity();
+      return;
     }
 
+    const isUpdateRequest = Boolean(isEditingBooking && currentBookingId);
+    const requestUrl = isUpdateRequest
+      ? `${getBookingApiBase()}/api/bookings/${encodeURIComponent(currentBookingId)}`
+      : `${getBookingApiBase()}/api/bookings`;
+
+    syncSubmitButton(true);
+
     try {
-      const response = await fetch(getBookingApiBase() + "/api/bookings", {
-        method: "POST",
+      const response = await fetch(requestUrl, {
+        method: isUpdateRequest ? "PATCH" : "POST",
         headers: {
           "Content-Type": "application/json",
         },
@@ -323,21 +441,24 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
         const errorText =
           payload && Array.isArray(payload.details) && payload.details.length
             ? payload.details.join(" ")
-            : (payload && payload.error) || "Could not save booking request to server.";
+            : (payload && payload.error) ||
+              (isUpdateRequest
+                ? "Could not update booking request on server."
+                : "Could not save booking request to server.");
         throw new Error(errorText);
       }
+
+      currentBookingId = payload.id || (payload.booking && payload.booking.id) || currentBookingId;
+      isEditingBooking = false;
     } catch (error) {
       const message = error && error.message ? error.message : "Could not connect to booking API.";
       window.alert(
         message +
-          "\n\nMake sure the backend is running and reachable at " +
+          "\n\nMake sure the booking API is running and reachable at " +
           getBookingApiBase() +
           "."
       );
-      if (bookingSubmitBtn) {
-        bookingSubmitBtn.disabled = false;
-        bookingSubmitBtn.textContent = "Submit booking request";
-      }
+      syncSubmitButton(false);
       return;
     }
 
@@ -345,8 +466,12 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
     const urgencyFlag = /urgent|drivability/i.test(details.urgency);
 
     bookingSuccessTextEl.textContent = urgencyFlag
-      ? "Thanks. For urgent drivability concerns, call the shop now so the team can advise on next steps right away."
-      : "Thanks. Your booking request is ready for follow-up. The shop can confirm a time by your preferred contact method.";
+      ? isUpdateRequest
+        ? "Your booking request was updated. For urgent drivability concerns, call the shop now so the team can advise on next steps right away."
+        : "Thanks. For urgent drivability concerns, call the shop now so the team can advise on next steps right away."
+      : isUpdateRequest
+        ? "Your booking request was updated. The shop can confirm a time by your preferred contact method."
+        : "Thanks. Your booking request is ready for follow-up. The shop can confirm a time by your preferred contact method.";
 
     bookingSummaryEl.textContent = "";
     [
@@ -376,6 +501,7 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
 
     try {
       const stored = {
+        id: currentBookingId,
         ...details,
         savedAt: new Date().toISOString(),
       };
@@ -384,20 +510,16 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
       // Non-blocking in private mode / restricted browsers.
     }
 
-    if (bookingSubmitBtn) {
-      bookingSubmitBtn.disabled = false;
-      bookingSubmitBtn.textContent = "Submit booking request";
-    }
+    syncSubmitButton(false);
   });
 
   if (editBookingBtn) {
     editBookingBtn.addEventListener("click", () => {
+      isEditingBooking = Boolean(currentBookingId);
       bookingSuccessEl.hidden = true;
       bookingForm.hidden = false;
-      const firstInput = bookingForm.querySelector("input, select, textarea");
-      if (firstInput && typeof firstInput.focus === "function") {
-        firstInput.focus();
-      }
+      syncSubmitButton(false);
+      focusBookingForm();
     });
   }
 }

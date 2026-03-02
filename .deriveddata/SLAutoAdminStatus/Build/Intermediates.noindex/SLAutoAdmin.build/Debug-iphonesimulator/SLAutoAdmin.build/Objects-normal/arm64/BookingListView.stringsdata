@@ -1,0 +1,144 @@
+{
+  "source": "/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/ChatGPT/SLAutoAdmin/SLAutoAdmin/BookingListView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Bookings",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 68
+        }
+      },
+      {
+        "comment": "",
+        "key": "Bookings",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 31
+        }
+      },
+      {
+        "comment": "",
+        "key": "Refresh",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 79
+        }
+      },
+      {
+        "comment": "",
+        "key": "Updated %@",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 131
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 107
+        }
+      },
+      {
+        "comment": "",
+        "key": "SL Auto Admin",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 100
+        }
+      },
+      {
+        "comment": "",
+        "key": "Booking inbox",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 102
+        }
+      },
+      {
+        "comment": "",
+        "key": "API Connection",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 141
+        }
+      },
+      {
+        "comment": "",
+        "key": "Use local IP for iPhone testing, e.g. http://192.168.1.10:3000",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 168
+        }
+      },
+      {
+        "comment": "",
+        "key": "http://localhost:3000",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 156
+        }
+      },
+      {
+        "comment": "",
+        "key": "Backend URL",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 148
+        }
+      },
+      {
+        "comment": "",
+        "key": "Rejected",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 235
+        }
+      },
+      {
+        "comment": "",
+        "key": "Collapsed by default because it matters less day to day",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 237
+        }
+      },
+      {
+        "comment": "",
+        "key": "Loading bookings...",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 303
+        }
+      },
+      {
+        "comment": "",
+        "key": "New website bookings will appear here after customers submit the online form.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 315
+        }
+      },
+      {
+        "comment": "",
+        "key": "No bookings yet",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 313
+        }
+      },
+      {
+        "comment": "",
+        "key": "Load failed",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 338
+        }
+      }
+    ]
+  },
+  "version": 1
+}
