@@ -122,6 +122,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  gap: 0.75rem;
 }
 
 .ghost-button,
@@ -372,6 +373,73 @@ button {
   gap: 0.9rem;
 }
 
+.manual-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.manual-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem 1rem;
+}
+
+.manual-form-span-two {
+  grid-column: 1 / -1;
+}
+
+.manual-form-actions {
+  display: grid;
+  gap: 0.7rem;
+  align-items: start;
+}
+
+.support-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.success-banner {
+  margin: 0;
+  padding: 0.95rem 1rem;
+  border-radius: var(--radius-lg);
+  background: rgba(232, 246, 236, 0.92);
+  border: 1px solid rgba(34, 128, 94, 0.18);
+  color: var(--green);
+  font-weight: 700;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(16, 21, 29, 0.42);
+  backdrop-filter: blur(8px);
+}
+
+.modal-dialog {
+  width: min(100%, 68rem);
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.modal-close {
+  padding: 0.78rem 1rem;
+}
+
 .field-label {
   display: block;
   margin-bottom: 0.45rem;
@@ -393,6 +461,11 @@ button {
 .text-input:focus {
   border-color: rgba(43, 109, 246, 0.42);
   box-shadow: 0 0 0 4px rgba(43, 109, 246, 0.12);
+}
+
+.text-area-input {
+  min-height: 7.5rem;
+  resize: vertical;
 }
 
 .connection-actions {
@@ -424,6 +497,40 @@ button {
 
 .section-heading {
   padding-bottom: 0.4rem;
+}
+
+.section-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.section-toggle-copy {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.section-toggle-copy h3,
+.section-toggle-copy p {
+  margin: 0;
+}
+
+.section-toggle-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.section-chevron {
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 700;
 }
 
 .mini-count {
@@ -704,6 +811,18 @@ button {
 
   .folder-grid {
     grid-template-columns: 1fr;
+  }
+
+  .manual-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-backdrop {
+    padding: 0.6rem;
+  }
+
+  .modal-actions {
+    justify-content: flex-start;
   }
 
   .panel {

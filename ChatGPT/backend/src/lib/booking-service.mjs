@@ -102,34 +102,19 @@ export const listBookings = async () => {
 };
 
 export const createBooking = async (payload) => {
-  if (clean(payload.website)) {
-    throw new BookingError(400, "Spam rejected.");
-  }
-
-  const booking = sanitizeBooking(payload);
-  const errors = validateBooking(booking);
-  if (errors.length) {
-    throw new BookingError(400, "Validation failed.", errors);
-  }
-
-  const record = {
-    id: `bk_${Date.now()}`,
-    createdAt: new Date().toISOString(),
-    source: clean(payload.source) || "website",
-    status: "new",
-    archivedAt: null,
-    updatedAt: null,
-    ...booking,
-  };
-
-  if (resolveStorageMode() === "supabase") {
-    await insertSupabaseBooking(record);
-  } else {
-    await appendFileBooking(record);
-  }
-
-  return record;
+  return createBookingRecord(payload, {
+    defaultSource: clean(payload.source) || "website",
+    defaultStatus: "new",
+    rejectSpam: true,
+  });
 };
+
+export const createManualBooking = async (payload) =>
+  createBookingRecord(payload, {
+    defaultSource: clean(payload.source) || "manual-entry",
+    defaultStatus: "accepted",
+    rejectSpam: false,
+  });
 
 export const updateBooking = async (bookingId, payload) => {
   const bookingIdClean = clean(bookingId);
@@ -370,6 +355,42 @@ async function appendFileBooking(record) {
   const storagePath = getStoragePath();
   await fs.mkdir(path.dirname(storagePath), { recursive: true });
   await fs.appendFile(storagePath, JSON.stringify(record) + "\n", "utf8");
+}
+
+async function createBookingRecord(
+  payload,
+  { defaultSource = "website", defaultStatus = "new", rejectSpam = true } = {}
+) {
+  if (rejectSpam && clean(payload.website)) {
+    throw new BookingError(400, "Spam rejected.");
+  }
+
+  if (!allowedBookingStatuses.has(defaultStatus)) {
+    throw new BookingError(500, `Unsupported booking status: ${defaultStatus}`);
+  }
+
+  const booking = sanitizeBooking(payload);
+  const errors = validateBooking(booking);
+  if (errors.length) {
+    throw new BookingError(400, "Validation failed.", errors);
+  }
+
+  const record = {
+    id: `bk_${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    source: defaultSource,
+    status: defaultStatus,
+    archivedAt: null,
+    updatedAt: null,
+    ...booking,
+  };
+
+  if (resolveStorageMode() === "supabase") {
+    return insertSupabaseBooking(record);
+  }
+
+  await appendFileBooking(record);
+  return record;
 }
 
 async function writeFileBookings(bookings) {

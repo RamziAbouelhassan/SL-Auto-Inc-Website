@@ -4,6 +4,7 @@
   const STORAGE_KEY = "sl_auto_admin.web.apiBaseURL";
   const ARCHIVE_RETENTION_DAYS = 30;
   const API_SERVICE_NAME = "sl-auto-booking-api";
+  const DEFAULT_API_PORT = "4310";
   const VIEWS = {
     inbox: "inbox",
     rejected: "rejected",
@@ -19,6 +20,35 @@
     accepted: { label: "Accepted", tone: "green" },
     rejected: { label: "Rejected", tone: "gray" },
   };
+  const MANUAL_SOURCE_OPTIONS = ["Phone call", "Walk-in", "Existing customer", "Other"];
+  const CONTACT_METHOD_OPTIONS = ["Phone call", "Text message", "Email"];
+  const TIME_WINDOW_OPTIONS = [
+    "Morning (9 AM - 12 PM)",
+    "Midday (12 PM - 3 PM)",
+    "Afternoon (3 PM - 6 PM)",
+    "Flexible (shop can suggest best time)",
+  ];
+  const SERVICE_OPTIONS = [
+    "Oil change / maintenance",
+    "Brake inspection / repair",
+    "Check engine light diagnosis",
+    "Battery / charging issue",
+    "Steering / suspension concern",
+    "Noise / vibration concern",
+    "Pre-trip / seasonal inspection",
+    "General diagnosis / other",
+  ];
+  const VISIT_TYPE_OPTIONS = [
+    "Not sure yet",
+    "Drop-off",
+    "Wait if possible",
+    "Need shuttle / ride info (if available)",
+  ];
+  const URGENCY_OPTIONS = [
+    "Standard booking request",
+    "Soon (next 1-2 days)",
+    "Urgent - vehicle issue affecting drivability",
+  ];
   const app = document.getElementById("app");
 
   const state = {
@@ -31,6 +61,14 @@
     currentView: VIEWS.inbox,
     archivedFilter: ARCHIVED_FILTERS.all,
     selectedBookingId: "",
+    manualDraft: createDefaultManualDraft(),
+    isCreatingManual: false,
+    manualSuccessMessage: "",
+    showManualForm: false,
+    sectionOpen: {
+      pending: false,
+      accepted: false,
+    },
   };
 
   const dateTimeFormatter = new Intl.DateTimeFormat("en-CA", {
@@ -46,6 +84,50 @@
   const timeOnlyFormatter = new Intl.DateTimeFormat("en-CA", {
     timeStyle: "short",
   });
+
+  function formatDateInputValue(date) {
+    const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    return localDate.toISOString().slice(0, 10);
+  }
+
+  function getNextBookableDateValue() {
+    const nextDate = new Date();
+    nextDate.setHours(12, 0, 0, 0);
+
+    while (nextDate.getDay() === 6) {
+      nextDate.setDate(nextDate.getDate() + 1);
+    }
+
+    return formatDateInputValue(nextDate);
+  }
+
+  function createDefaultManualDraft() {
+    return {
+      source: "Phone call",
+      name: "",
+      phone: "",
+      email: "",
+      contactMethod: "Phone call",
+      year: "",
+      make: "",
+      model: "",
+      preferredDate: getNextBookableDateValue(),
+      timeWindow: "Flexible (shop can suggest best time)",
+      serviceType: "",
+      concern: "",
+      visitType: "Not sure yet",
+      urgency: "Standard booking request",
+    };
+  }
+
+  function normalizeManualDraft(values = {}) {
+    return {
+      ...createDefaultManualDraft(),
+      ...Object.fromEntries(
+        Object.entries(values).map(([key, value]) => [key, String(value ?? "").trim()])
+      ),
+    };
+  }
 
   document.addEventListener("DOMContentLoaded", init);
   window.addEventListener("hashchange", applyRouteFromHash);
@@ -63,10 +145,16 @@
     if (stored) return stored;
 
     if (window.location.protocol.startsWith("http")) {
+      const locationUrl = new URL(window.location.href);
+      if (locationUrl.port === "3000") {
+        locationUrl.port = DEFAULT_API_PORT;
+        return locationUrl.origin;
+      }
+
       return `${window.location.protocol}//${window.location.host}`;
     }
 
-    return "http://localhost:3000";
+    return `http://localhost:${DEFAULT_API_PORT}`;
   }
 
   function normalizeBaseUrl(url) {
@@ -102,18 +190,17 @@
     state.errorMessage = "";
     render();
 
-    const baseUrl = normalizeBaseUrl(state.apiBaseUrl);
-
     try {
-      const response = await fetch(`${baseUrl}/api/bookings`);
-      const payload = await parseResponse(response, "Server error loading bookings.");
-      state.bookings = Array.isArray(payload.bookings)
-        ? payload.bookings.sort((left, right) => String(right.createdAt || "").localeCompare(String(left.createdAt || "")))
-        : [];
+      const resolvedBaseUrl = await resolveWorkingBaseUrl(state.apiBaseUrl);
+      state.apiBaseUrl = resolvedBaseUrl;
+      window.localStorage.setItem(STORAGE_KEY, resolvedBaseUrl);
+
+      const payload = await fetchBookings(resolvedBaseUrl);
+      state.bookings = sortBookings(payload.bookings);
       state.lastLoadedAt = new Date();
       reconcileSelection();
     } catch (error) {
-      state.errorMessage = await describeConnectionError(baseUrl, error);
+      state.errorMessage = await describeConnectionError(state.apiBaseUrl, error);
     } finally {
       state.isLoading = false;
       render();
@@ -166,6 +253,69 @@
     return payload;
   }
 
+  async function fetchBookings(baseUrl) {
+    const response = await fetch(`${normalizeBaseUrl(baseUrl)}/api/bookings`);
+    return parseResponse(response, "Server error loading bookings.");
+  }
+
+  async function resolveWorkingBaseUrl(baseUrl) {
+    const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
+
+    if (await isBookingApi(normalizedBaseUrl)) {
+      return normalizedBaseUrl;
+    }
+
+    const fallbackBaseUrls = getFallbackBaseUrls(normalizedBaseUrl);
+
+    for (const candidate of fallbackBaseUrls) {
+      if (await isBookingApi(candidate)) {
+        return candidate;
+      }
+    }
+
+    return normalizedBaseUrl;
+  }
+
+  async function isBookingApi(baseUrl) {
+    try {
+      const response = await fetch(`${normalizeBaseUrl(baseUrl)}/health`);
+      if (!response.ok) return false;
+
+      const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+      if (!contentType.includes("application/json")) return false;
+
+      const payload = await response.json();
+      return payload?.service === API_SERVICE_NAME;
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function getFallbackBaseUrls(baseUrl) {
+    const fallbacks = new Set();
+
+    try {
+      const parsedUrl = new URL(baseUrl);
+      if (parsedUrl.port !== DEFAULT_API_PORT) {
+        parsedUrl.port = DEFAULT_API_PORT;
+        fallbacks.add(parsedUrl.origin);
+      }
+
+      if (parsedUrl.hostname === "localhost") {
+        fallbacks.add(`http://127.0.0.1:${DEFAULT_API_PORT}`);
+      }
+
+      if (parsedUrl.hostname === "127.0.0.1") {
+        fallbacks.add(`http://localhost:${DEFAULT_API_PORT}`);
+      }
+    } catch (_error) {
+      fallbacks.add(`http://localhost:${DEFAULT_API_PORT}`);
+      fallbacks.add(`http://127.0.0.1:${DEFAULT_API_PORT}`);
+    }
+
+    return Array.from(fallbacks);
+  }
+
   async function describeConnectionError(baseUrl, error) {
     const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
     const genericMessage = error?.message || "Could not connect to booking API.";
@@ -188,7 +338,7 @@
 
       return `${normalizedBaseUrl} is responding, but it is not the SL Auto booking API. Start ChatGPT/backend and use that backend URL here.`;
     } catch (_probeError) {
-      return `Could not reach the booking API at ${normalizedBaseUrl}. Start ChatGPT/backend, then enter that server URL here.`;
+      return `Could not reach the booking API at ${normalizedBaseUrl}. Start Web_Admin_App with npm start, then use that server URL here.`;
     }
   }
 
@@ -213,6 +363,12 @@
 
     nextBookings.sort((left, right) => String(right.createdAt || "").localeCompare(String(left.createdAt || "")));
     state.bookings = nextBookings;
+  }
+
+  function sortBookings(bookings) {
+    return Array.isArray(bookings)
+      ? [...bookings].sort((left, right) => String(right.createdAt || "").localeCompare(String(left.createdAt || "")))
+      : [];
   }
 
   function getResolvedStatus(booking) {
@@ -360,6 +516,7 @@
 
     app.innerHTML = `
       ${renderTopGrid(counts)}
+      ${state.manualSuccessMessage ? `<section class="success-banner">${escapeHtml(state.manualSuccessMessage)}</section>` : ""}
       ${state.errorMessage ? renderErrorBanner(state.errorMessage) : ""}
       ${renderViewTabs(counts)}
       <section class="workspace-grid">
@@ -370,6 +527,7 @@
           ${renderDetailPanel(booking)}
         </aside>
       </section>
+      ${state.showManualForm ? renderManualEntryDialog() : ""}
     `;
   }
 
@@ -422,24 +580,160 @@
                 name="apiBaseUrl"
                 type="text"
                 value="${escapeHtml(state.apiBaseUrl)}"
-                placeholder="http://localhost:3000"
+                placeholder="http://localhost:4310"
                 autocomplete="off"
               />
             </div>
 
             <div class="connection-actions">
               <button class="primary-button" type="submit">${state.isLoading ? "Loading..." : "Save and reload"}</button>
-              <button class="muted-button" type="button" data-action="use-localhost">Use localhost</button>
+              <button class="muted-button" type="button" data-action="use-localhost">Use localhost:4310</button>
             </div>
 
             <p class="connection-note muted-text">
-              If the booking API server is running from this repo, this app is also available at
-              <span class="text-strong">/Web_Admin_App/</span>.
+              Run <span class="text-strong">npm start</span> in <span class="text-strong">ChatGPT/Web_Admin_App</span>,
+              then open that server URL.
             </p>
           </form>
         </article>
       </section>
     `;
+  }
+
+  function renderManualEntryDialog() {
+    const draft = normalizeManualDraft(state.manualDraft);
+
+    return `
+      <section class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="manual-booking-title">
+        <article class="panel modal-dialog">
+          <div class="panel-heading">
+            <div>
+              <h2 id="manual-booking-title">Add booking</h2>
+              <p>Add a phone call, walk-in, or existing customer directly into accepted bookings.</p>
+            </div>
+            <div class="modal-actions">
+              <span class="pill pill-green">Saves as accepted</span>
+              <button class="ghost-button modal-close" type="button" data-action="close-manual">Close</button>
+            </div>
+          </div>
+
+          <form class="manual-form" data-form="manual-booking">
+            <div class="manual-form-grid">
+              <label>
+                <span class="field-label">Source</span>
+                <select class="text-input" name="source">
+                  ${renderSelectOptions(MANUAL_SOURCE_OPTIONS, draft.source)}
+                </select>
+              </label>
+
+              <label>
+                <span class="field-label">Preferred contact</span>
+                <select class="text-input" name="contactMethod" required>
+                  ${renderSelectOptions(CONTACT_METHOD_OPTIONS, draft.contactMethod)}
+                </select>
+              </label>
+
+              <label>
+                <span class="field-label">Full name</span>
+                <input class="text-input" type="text" name="name" value="${escapeHtml(draft.name)}" required />
+              </label>
+
+              <label>
+                <span class="field-label">Phone number</span>
+                <input class="text-input" type="tel" name="phone" value="${escapeHtml(draft.phone)}" required />
+              </label>
+
+              <label>
+                <span class="field-label">Email</span>
+                <input
+                  class="text-input"
+                  type="email"
+                  name="email"
+                  value="${escapeHtml(draft.email)}"
+                  placeholder="Optional"
+                />
+              </label>
+
+              <label>
+                <span class="field-label">Preferred date</span>
+                <input class="text-input" type="date" name="preferredDate" value="${escapeHtml(draft.preferredDate)}" required />
+              </label>
+
+              <label>
+                <span class="field-label">Vehicle year</span>
+                <input class="text-input" type="number" name="year" min="1980" max="2035" value="${escapeHtml(draft.year)}" required />
+              </label>
+
+              <label>
+                <span class="field-label">Vehicle make</span>
+                <input class="text-input" type="text" name="make" value="${escapeHtml(draft.make)}" required />
+              </label>
+
+              <label>
+                <span class="field-label">Vehicle model</span>
+                <input class="text-input" type="text" name="model" value="${escapeHtml(draft.model)}" required />
+              </label>
+
+              <label>
+                <span class="field-label">Time window</span>
+                <select class="text-input" name="timeWindow" required>
+                  ${renderSelectOptions(TIME_WINDOW_OPTIONS, draft.timeWindow)}
+                </select>
+              </label>
+
+              <label class="manual-form-span-two">
+                <span class="field-label">Service requested</span>
+                <select class="text-input" name="serviceType" required>
+                  ${renderSelectOptions(SERVICE_OPTIONS, draft.serviceType, "Select service")}
+                </select>
+              </label>
+
+              <label>
+                <span class="field-label">Visit type</span>
+                <select class="text-input" name="visitType">
+                  ${renderSelectOptions(VISIT_TYPE_OPTIONS, draft.visitType)}
+                </select>
+              </label>
+
+              <label>
+                <span class="field-label">Urgency</span>
+                <select class="text-input" name="urgency">
+                  ${renderSelectOptions(URGENCY_OPTIONS, draft.urgency)}
+                </select>
+              </label>
+
+              <label class="manual-form-span-two">
+                <span class="field-label">Concern / notes</span>
+                <textarea class="text-input text-area-input" name="concern" rows="4" placeholder="Optional service notes or phone-call details.">${escapeHtml(draft.concern)}</textarea>
+              </label>
+            </div>
+
+            <div class="manual-form-actions">
+              <button class="primary-button" type="submit" ${state.isCreatingManual ? "disabled" : ""}>
+                ${state.isCreatingManual ? "Adding..." : "Add to accepted"}
+              </button>
+              <p class="support-copy">Manual entries bypass the pending inbox and appear in accepted bookings immediately.</p>
+            </div>
+          </form>
+        </article>
+      </section>
+    `;
+  }
+
+  function renderSelectOptions(options, selectedValue, placeholder = "") {
+    const optionMarkup = options
+      .map((option) => {
+        const selected = option === selectedValue ? "selected" : "";
+        return `<option value="${escapeHtml(option)}" ${selected}>${escapeHtml(option)}</option>`;
+      })
+      .join("");
+
+    if (!placeholder) {
+      return optionMarkup;
+    }
+
+    const placeholderSelected = selectedValue ? "" : "selected";
+    return `<option value="" ${placeholderSelected}>${escapeHtml(placeholder)}</option>${optionMarkup}`;
   }
 
   function renderErrorBanner(message) {
@@ -489,8 +783,8 @@
       ${state.isLoading && state.bookings.length === 0 ? renderEmptyState("Loading bookings", "Pulling the latest requests from the booking API.") : ""}
       ${empty ? renderEmptyState("No bookings yet", "Once requests arrive, pending and accepted work will show up here.") : ""}
       ${!empty ? `
-        ${renderBookingSection("Pending", "Needs a decision", counts.pending, "No pending bookings right now.")}
-        ${renderBookingSection("Accepted", "Approved and still active", counts.accepted, "No accepted bookings yet.")}
+        ${renderBookingSection("pending", "Pending", "Needs a decision", counts.pending, "No pending bookings right now.", true)}
+        ${renderBookingSection("accepted", "Accepted", "Approved and still active", counts.accepted, "No accepted bookings yet.", true)}
         <article class="panel">
           <div class="section-heading">
             <div>
@@ -513,7 +807,7 @@
       <article class="panel notice-card">
         <p>Rejected bookings stay out of the way here until you archive them or bring them back into the active workflow.</p>
       </article>
-      ${renderBookingSection("Rejected", "Previously declined requests", rejectedBookings, "No rejected bookings.")}
+      ${renderBookingSection("rejected", "Rejected", "Previously declined requests", rejectedBookings, "No rejected bookings.")}
     `;
   }
 
@@ -539,6 +833,7 @@
       ${archivedBookings.length === 0
         ? renderEmptyState("No archived bookings", "Archive accepted or rejected bookings to move them out of the active workflow.")
         : renderBookingSection(
+            "archived-list",
             "Archive list",
             "Filtered records",
             filteredBookings,
@@ -568,9 +863,27 @@
     `;
   }
 
-  function renderBookingSection(title, subtitle, bookings, emptyMessage) {
-    return `
-      <article class="panel">
+  function renderBookingSection(sectionKey, title, subtitle, bookings, emptyMessage, collapsible = false) {
+    const isOpen = collapsible ? state.sectionOpen[sectionKey] !== false : true;
+    const toggleButton = collapsible
+      ? `
+        <button
+          class="section-toggle"
+          type="button"
+          data-section-toggle="${sectionKey}"
+          aria-expanded="${isOpen ? "true" : "false"}"
+        >
+          <span class="section-toggle-copy">
+            <h3>${escapeHtml(title)}</h3>
+            <p>${escapeHtml(subtitle)}</p>
+          </span>
+          <span class="section-toggle-meta">
+            <span class="mini-count">${bookings.length}</span>
+            <span class="section-chevron" aria-hidden="true">${isOpen ? "▾" : "▸"}</span>
+          </span>
+        </button>
+      `
+      : `
         <div class="section-heading">
           <div>
             <h3>${escapeHtml(title)}</h3>
@@ -578,10 +891,17 @@
           </div>
           <span class="mini-count">${bookings.length}</span>
         </div>
+      `;
 
-        ${bookings.length === 0
-          ? renderEmptyState(title, emptyMessage)
-          : `<div class="booking-list">${bookings.map((booking) => renderBookingCard(booking)).join("")}</div>`}
+    return `
+      <article class="panel">
+        ${toggleButton}
+
+        ${isOpen
+          ? (bookings.length === 0
+              ? renderEmptyState(title, emptyMessage)
+              : `<div class="booking-list">${bookings.map((booking) => renderBookingCard(booking)).join("")}</div>`)
+          : ""}
       </article>
     `;
   }
@@ -736,6 +1056,10 @@
                 <span class="meta-label">Contact</span>
                 <span class="meta-value">${escapeHtml(booking.contactMethod)}</span>
               ` : ""}
+              ${booking.source ? `
+                <span class="meta-label">Source</span>
+                <span class="meta-value">${escapeHtml(booking.source)}</span>
+              ` : ""}
             </div>
           </section>
 
@@ -781,6 +1105,16 @@
   }
 
   async function handleClick(event) {
+    const sectionToggle = event.target.closest("[data-section-toggle]");
+    if (sectionToggle) {
+      event.preventDefault();
+      const sectionKey = sectionToggle.dataset.sectionToggle;
+      if (!sectionKey) return;
+      state.sectionOpen[sectionKey] = !(state.sectionOpen[sectionKey] !== false);
+      render();
+      return;
+    }
+
     const actionButton = event.target.closest("[data-action]");
     if (actionButton) {
       const action = actionButton.dataset.action;
@@ -792,9 +1126,24 @@
         return;
       }
 
+      if (action === "open-manual") {
+        event.preventDefault();
+        state.showManualForm = true;
+        state.manualSuccessMessage = "";
+        render();
+        return;
+      }
+
+      if (action === "close-manual") {
+        event.preventDefault();
+        state.showManualForm = false;
+        render();
+        return;
+      }
+
       if (action === "use-localhost") {
         event.preventDefault();
-        state.apiBaseUrl = "http://localhost:3000";
+        state.apiBaseUrl = `http://localhost:${DEFAULT_API_PORT}`;
         window.localStorage.setItem(STORAGE_KEY, state.apiBaseUrl);
         await loadBookings();
         return;
@@ -886,11 +1235,81 @@
   }
 
   async function handleSubmit(event) {
-    const form = event.target.closest('[data-form="connection"]');
-    if (!form) return;
+    const manualForm = event.target.closest('[data-form="manual-booking"]');
+    if (manualForm) {
+      event.preventDefault();
+
+      const formData = new FormData(manualForm);
+      const manualDraft = normalizeManualDraft({
+        source: formData.get("source"),
+        name: formData.get("name"),
+        phone: formData.get("phone"),
+        email: formData.get("email"),
+        contactMethod: formData.get("contactMethod"),
+        year: formData.get("year"),
+        make: formData.get("make"),
+        model: formData.get("model"),
+        preferredDate: formData.get("preferredDate"),
+        timeWindow: formData.get("timeWindow"),
+        serviceType: formData.get("serviceType"),
+        concern: formData.get("concern"),
+        visitType: formData.get("visitType"),
+        urgency: formData.get("urgency"),
+      });
+
+      state.manualDraft = manualDraft;
+      state.manualSuccessMessage = "";
+
+      if (!manualForm.reportValidity()) {
+        return;
+      }
+
+      state.isCreatingManual = true;
+      state.errorMessage = "";
+      render();
+
+      try {
+        const resolvedBaseUrl = await resolveWorkingBaseUrl(state.apiBaseUrl);
+        state.apiBaseUrl = resolvedBaseUrl;
+        window.localStorage.setItem(STORAGE_KEY, resolvedBaseUrl);
+
+        const response = await fetch(`${resolvedBaseUrl}/api/bookings/manual`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(manualDraft),
+        });
+        const payload = await parseResponse(response, "Could not save manual booking.");
+        const booking = payload.booking;
+
+        if (booking) {
+          upsertBooking(booking);
+          state.currentView = VIEWS.inbox;
+          state.selectedBookingId = booking.id;
+        } else {
+          await loadBookings();
+        }
+
+        state.manualDraft = createDefaultManualDraft();
+        state.manualSuccessMessage = `${booking?.name || "Booking"} added to accepted.`;
+        state.showManualForm = false;
+        state.lastLoadedAt = new Date();
+        reconcileSelection();
+      } catch (error) {
+        state.errorMessage = error?.message || "Could not save manual booking.";
+      } finally {
+        state.isCreatingManual = false;
+        render();
+      }
+      return;
+    }
+
+    const connectionForm = event.target.closest('[data-form="connection"]');
+    if (!connectionForm) return;
 
     event.preventDefault();
-    const formData = new FormData(form);
+    const formData = new FormData(connectionForm);
     state.apiBaseUrl = normalizeBaseUrl(formData.get("apiBaseUrl"));
     window.localStorage.setItem(STORAGE_KEY, state.apiBaseUrl);
     await loadBookings();

@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import {
   BookingError,
   createBooking,
+  createManualBooking,
   deleteBooking,
   getStorageDetails,
   listBookings,
@@ -144,6 +145,19 @@ app.post("/api/bookings", async (req, res) => {
     });
   } catch (error) {
     return sendJsonError(res, error, "Server error while saving booking request.");
+  }
+});
+
+app.post("/api/bookings/manual", async (req, res) => {
+  try {
+    const record = await createManualBooking(req.body || {});
+    return res.status(201).json({
+      ok: true,
+      booking: record,
+      message: "Manual booking saved to accepted.",
+    });
+  } catch (error) {
+    return sendJsonError(res, error, "Server error while saving manual booking.");
   }
 });
 
