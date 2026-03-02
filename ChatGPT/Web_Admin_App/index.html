@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SL Auto Admin</title>
+    <meta
+      name="description"
+      content="Web admin for reviewing, approving, archiving, and deleting SL Auto booking requests."
+    />
+    <meta name="theme-color" content="#10151d" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-one" aria-hidden="true"></div>
+    <div class="ambient ambient-two" aria-hidden="true"></div>
+
+    <main class="page-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">SL Auto Inc</p>
+          <h1>Admin booking desk</h1>
+          <p class="hero-copy">
+            The Swift inbox is now mirrored as a browser-based admin workspace with the same booking buckets, detail
+            actions, and archive flow.
+          </p>
+        </div>
+
+        <div class="hero-actions">
+          <button class="ghost-button" type="button" data-action="refresh">Refresh</button>
+        </div>
+      </header>
+
+      <div id="app" class="app-root" aria-live="polite"></div>
+    </main>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>

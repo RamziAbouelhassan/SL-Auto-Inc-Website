@@ -25,6 +25,42 @@ struct BookingListView: View {
         pendingBookings.count + acceptedBookings.count + rejectedBookings.count
     }
 
+    private var connectionStatusTitle: String {
+        if store.isLoading {
+            return "Loading"
+        }
+
+        if store.errorMessage != nil {
+            return "Connection failed"
+        }
+
+        return "Connected"
+    }
+
+    private var connectionStatusSymbol: String {
+        if store.isLoading {
+            return "arrow.triangle.2.circlepath"
+        }
+
+        if store.errorMessage != nil {
+            return "wifi.exclamationmark"
+        }
+
+        return "bolt.horizontal.circle.fill"
+    }
+
+    private var connectionStatusColor: Color {
+        if store.isLoading {
+            return .orange
+        }
+
+        if store.errorMessage != nil {
+            return .red
+        }
+
+        return .green
+    }
+
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
@@ -102,9 +138,9 @@ struct BookingListView: View {
 
             WrappingFlowLayout(spacing: 10, rowSpacing: 10) {
                 statusPill(
-                    title: store.isLoading ? "Loading" : "Connected",
-                    systemImage: store.isLoading ? "arrow.triangle.2.circlepath" : "bolt.horizontal.circle.fill",
-                    color: store.isLoading ? .orange : .green
+                    title: connectionStatusTitle,
+                    systemImage: connectionStatusSymbol,
+                    color: connectionStatusColor
                 )
 
                 countPill(title: "\(pendingBookings.count) pending", color: .blue)
@@ -154,7 +190,7 @@ struct BookingListView: View {
                     Task { await store.loadBookings() }
                 }
 
-            Text("Use local IP for iPhone testing, e.g. http://192.168.1.10:3000")
+            Text("Use the same host and port as the running backend, e.g. http://192.168.1.10:4310")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
