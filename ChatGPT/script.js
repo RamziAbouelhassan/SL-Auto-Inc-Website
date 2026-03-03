@@ -341,6 +341,72 @@ const resolveWorkingBookingApiBase = async (baseUrl) => {
 
   return { baseUrl: requestedBaseUrl, attemptedBases, matched: false };
 };
+const looksLikePreviewServer = (bodyText) => {
+  const normalized = String(bodyText || "").toLowerCase();
+  return (
+    normalized.includes("___vscode_livepreview_injected_script") ||
+    normalized.includes("<title>file not found</title>") ||
+    normalized.includes("the file <b>")
+  );
+};
+const isLocalBookingEnvironment = (baseUrl) => {
+  if (window.location.protocol === "file:") return true;
+
+  const hostnames = new Set();
+  if (window.location.hostname) {
+    hostnames.add(window.location.hostname);
+  }
+
+  try {
+    const parsedUrl = new URL(normalizeBaseUrl(baseUrl));
+    if (parsedUrl.hostname) {
+      hostnames.add(parsedUrl.hostname);
+    }
+  } catch (error) {
+    // Ignore invalid URLs.
+  }
+
+  return Array.from(hostnames).some((hostname) => isLoopbackHost(hostname) || isPrivateIpv4Host(hostname));
+};
+const describeBookingConnectionError = async (baseUrl, error) => {
+  const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
+  const genericMessage = error?.message || "Could not connect to booking API.";
+  const localHelpText =
+    "Start ChatGPT/backend with npm start, then retry this page or open the printed backend URL (usually http://localhost:3000/booking.html).";
+
+  if (!normalizedBaseUrl) {
+    return isLocalBookingEnvironment("")
+      ? `Could not determine which booking API to use. ${localHelpText}`
+      : genericMessage;
+  }
+
+  try {
+    const healthResponse = await fetch(`${normalizedBaseUrl}/health`);
+    const contentType = String(healthResponse.headers.get("content-type") || "").toLowerCase();
+
+    if (contentType.includes("application/json")) {
+      const payload = await healthResponse.json();
+      if (healthResponse.ok && payload?.service === API_SERVICE_NAME) {
+        return genericMessage;
+      }
+    } else {
+      const bodyText = await healthResponse.text();
+      if (looksLikePreviewServer(bodyText)) {
+        return isLocalBookingEnvironment(normalizedBaseUrl)
+          ? `${normalizedBaseUrl} is a preview/static server, not the booking API. ${localHelpText}`
+          : `${normalizedBaseUrl} is a preview/static server, not the booking API.`;
+      }
+    }
+
+    return isLocalBookingEnvironment(normalizedBaseUrl)
+      ? `${normalizedBaseUrl} is responding, but it is not the SL Auto booking API. ${localHelpText}`
+      : `${normalizedBaseUrl} is responding, but it is not the SL Auto booking API.`;
+  } catch (probeError) {
+    return isLocalBookingEnvironment(normalizedBaseUrl)
+      ? `Could not reach the booking API at ${normalizedBaseUrl}. ${localHelpText}`
+      : genericMessage;
+  }
+};
 
 const CLOSED_BOOKING_WEEKDAY = 6;
 const parseBookingDate = (value) => {
@@ -834,7 +900,7 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
       bookingCalendarAvailability.resolvedApiBase = resolvedApiBase;
       resetBookingCalendarAvailability();
     } catch (error) {
-      const message = error && error.message ? error.message : "Could not connect to booking API.";
+      const message = await describeBookingConnectionError(resolvedApiBase, error);
       const triedLabel = attemptedApiBases.length ? attemptedApiBases.join("\n- ") : resolvedApiBase;
       window.alert(
         `${message}\n\nTried booking API at:\n- ${triedLabel}`

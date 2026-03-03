@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Our Shop Process | SL Auto Inc</title>
+    <meta name="description" content="Learn about our transparent inspection, approval, and repair process.">
+    <link rel="stylesheet" href="styles.css">
+    <script src="script.js" defer></script>
+    <style>
+        .process-timeline {
+            position: relative;
+            max-width: 800px;
+            margin: 0 auto;
+            padding-left: 3rem;
+        }
+
+        .process-timeline::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 15px;
+            height: 100%;
+            width: 2px;
+            background: var(--glass-border);
+        }
+
+        .process-step {
+            position: relative;
+            margin-bottom: 3rem;
+        }
+
+        .process-step::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: calc(-3rem + 11px);
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--accent-primary);
+            box-shadow: 0 0 10px var(--accent-primary);
+        }
+
+        .process-number {
+            font-family: var(--font-heading);
+            font-size: 3rem;
+            font-weight: 800;
+            color: rgba(255, 255, 255, 0.05);
+            position: absolute;
+            top: -20px;
+            right: 20px;
+            line-height: 1;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="container nav-container">
+            <a href="index.html" class="logo">SL <span>Auto Inc</span></a>
+            <button class="mobile-menu-btn" aria-label="Toggle navigation">☰</button>
+            <nav class="nav-links">
+                <a href="index.html">Home</a>
+                <a href="services.html">Services</a>
+                <a href="why-us.html">Why Us</a>
+                <a href="process.html" class="active">Process</a>
+                <a href="hours.html">Hours</a>
+                <a href="contact.html">Contact</a>
+                <a href="booking.html" class="btn btn-primary" style="margin-left: 1rem; color: white;">Book Online</a>
+            </nav>
+        </div>
+    </header>
+
+    <main style="padding-top: 10rem;">
+        <section class="section pt-0">
+            <div class="container section-header animate-up">
+                <div class="hero-kicker">How We Work</div>
+                <h1>Our <span class="text-gradient">Transparent Process</span></h1>
+                <p class="lead">We believe in zero surprises. You are completely in control of what repairs are
+                    authorized on your vehicle.</p>
+            </div>
+
+            <div class="container animate-up delay-1">
+                <div class="process-timeline">
+
+                    <div class="glass-card process-step">
+                        <div class="process-number">01</div>
+                        <h3 class="text-gradient" style="margin-bottom: 0.5rem;">Intake & Consultation</h3>
+                        <p>It starts with booking online or calling us. When you drop off the vehicle, we'll listen
+                            carefully to the sounds you're hearing, the driveability issues you're experiencing, and
+                            note down all your concerns upfront.</p>
+                    </div>
+
+                    <div class="glass-card process-step">
+                        <div class="process-number">02</div>
+                        <h3 class="text-gradient" style="margin-bottom: 0.5rem;">Thorough Inspection</h3>
+                        <p>Our technicians take your car into the bay and perform a comprehensive visual and digital
+                            inspection. We hook up diagnostic scanners and perform test drives if necessary to
+                            accurately reproduce the issue.</p>
+                    </div>
+
+                    <div class="glass-card process-step">
+                        <div class="process-number">03</div>
+                        <h3 class="text-gradient" style="margin-bottom: 0.5rem;">The Estimate & Approval</h3>
+                        <p>We build a prioritized estimate. We'll call you to explain exactly what is broken
+                            (Safety/Critical), what is wearing out (Recommended soon), and what is totally fine.
+                            <strong>We do not turn a wrench or charge you a cent until you explicitly approve the
+                                work.</strong></p>
+                    </div>
+
+                    <div class="glass-card process-step">
+                        <div class="process-number">04</div>
+                        <h3 class="text-gradient" style="margin-bottom: 0.5rem;">Execution & Quality Control</h3>
+                        <p>Upon your approval, we order premium parts and perform the repair efficiently. After
+                            completion, we test-drive the vehicle to verify that the original concern has been fully
+                            resolved.</p>
+                    </div>
+
+                    <div class="glass-card process-step">
+                        <div class="process-number">05</div>
+                        <h3 class="text-gradient" style="margin-bottom: 0.5rem;">Pickup & Review</h3>
+                        <p>When you arrive to pick up your keys, we will go over the invoice with you, show you the old
+                            broken parts if requested, and answer any lingering questions about the repair.</p>
+                    </div>
+
+                </div>
+
+                <div style="text-align: center; margin-top: 4rem;">
+                    <a href="booking.html" class="btn btn-primary">Start the Process Today</a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col">
+                    <h4>SL Auto Inc</h4>
+                    <p>Premium auto repair focusing on clear communication, exact diagnostics, and efficient
+                        turnarounds.</p>
+                </div>
+                <div class="footer-col">
+                    <h4>Navigation</h4>
+                    <ul class="footer-links">
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="services.html">Services</a></li>
+                        <li><a href="why-us.html">Why Us</a></li>
+                        <li><a href="process.html">Process</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Contact Us</h4>
+                    <ul class="footer-links">
+                        <li>4400 Elgin Ave SE, Calgary</li>
+                        <li>(587) 228-3688</li>
+                        <li>Find us on <a href="contact.html">Google Maps</a></li>
+                        <li><a href="hours.html">View Hours</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                &copy; <span id="current-year"></span> SL Auto Inc. All rights reserved.
+            </div>
+        </div>
+    </footer>
+
+</body>
+
+</html>

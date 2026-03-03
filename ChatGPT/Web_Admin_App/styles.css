@@ -123,6 +123,35 @@ button {
   align-items: center;
   justify-content: flex-end;
   gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.hero-session {
+  display: flex;
+  align-items: center;
+  margin-right: 0.35rem;
+}
+
+.hero-session-pill {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.8rem 1rem;
+  border-radius: 1.25rem;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(23, 28, 35, 0.08);
+}
+
+.hero-session-pill strong {
+  font-size: 0.95rem;
+}
+
+.hero-session-pill span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.hero-session-pill.is-logged-out {
+  background: rgba(255, 255, 255, 0.45);
 }
 
 .ghost-button,
@@ -441,6 +470,121 @@ button {
   gap: 0.9rem;
 }
 
+.auth-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(20rem, 0.9fr);
+  gap: 1.2rem;
+}
+
+.auth-panel-single {
+  grid-template-columns: 1fr;
+}
+
+.auth-panel-copy {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.auth-panel-copy h2 {
+  margin: 0;
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+  line-height: 1.02;
+}
+
+.auth-panel-copy p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.auth-role-list,
+.team-user-list {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.auth-role-card,
+.team-user-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.05rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(23, 28, 35, 0.08);
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.auth-role-card {
+  flex-direction: column;
+}
+
+.auth-role-card p,
+.team-user-copy p {
+  margin: 0.3rem 0 0;
+  color: var(--muted);
+}
+
+.auth-form {
+  display: grid;
+  gap: 0.95rem;
+  align-content: start;
+}
+
+.auth-form-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.session-panel-copy,
+.team-user-actions,
+.team-user-copy {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.session-panel-copy {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.session-panel-copy h2 {
+  margin: 0;
+}
+
+.session-panel-copy p {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+}
+
+.session-panel-badges {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.checkbox-field input {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.team-user-actions {
+  justify-items: end;
+}
+
+.team-user-copy strong {
+  font-size: 1rem;
+}
+
 .manual-form {
   display: grid;
   gap: 1rem;
@@ -520,6 +664,14 @@ button {
   margin-bottom: 0.45rem;
   font-weight: 700;
   color: var(--ink);
+}
+
+.input-helper {
+  display: block;
+  margin-top: 0.55rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
 }
 
 .text-input {
@@ -1349,6 +1501,10 @@ button {
     grid-template-columns: 1fr;
   }
 
+  .auth-panel {
+    grid-template-columns: 1fr;
+  }
+
   .detail-panel {
     position: static;
   }
@@ -1414,7 +1570,9 @@ button {
   .calendar-toolbar,
   .calendar-summary,
   .calendar-agenda-head,
-  .calendar-agenda-item {
+  .calendar-agenda-item,
+  .session-panel-copy,
+  .team-user-card {
     flex-direction: column;
   }
 
@@ -1430,6 +1588,14 @@ button {
   .reschedule-calendar-head {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .auth-form-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .team-user-actions {
+    justify-items: start;
   }
 
   .calendar-day {

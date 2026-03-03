@@ -4,6 +4,18 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  AdminAuthError,
+  ADMIN_ROLES,
+  authenticateUser,
+  createAdminUser,
+  ensureAdminUserStore,
+  getSessionTokenFromRequest,
+  getSessionUser,
+  listAdminUsers,
+  revokeSession,
+  updateAdminUser,
+} from "./auth.mjs";
+import {
   BookingError,
   createBooking,
   createManualBooking,
@@ -38,7 +50,7 @@ const sendJson = (res, statusCode, payload) => {
   const body = JSON.stringify(payload);
   res.writeHead(statusCode, {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
     "Content-Type": "application/json; charset=utf-8",
     "Content-Length": Buffer.byteLength(body),
@@ -73,7 +85,7 @@ const getAccessibleUrls = (host, port) => {
 };
 
 const sendJsonError = (res, error, fallbackMessage) => {
-  if (error instanceof BookingError) {
+  if (error instanceof BookingError || error instanceof AdminAuthError || typeof error?.statusCode === "number") {
     const payload = { ok: false, error: error.message };
     if (error.details?.length) payload.details = error.details;
     return sendJson(res, error.statusCode, payload);
@@ -151,6 +163,28 @@ const serveStaticFile = async (res, pathname) => {
   }
 };
 
+const getRequestSession = async (req) => {
+  const token = getSessionTokenFromRequest(req);
+  return token ? getSessionUser(token) : null;
+};
+
+const requireSession = async (req, res, capability) => {
+  const session = await getRequestSession(req);
+  if (!session?.user) {
+    sendJson(res, 401, { ok: false, error: "Login required." });
+    return null;
+  }
+
+  if (capability && !session.user.permissions?.[capability]) {
+    sendJson(res, 403, { ok: false, error: "Your account does not have permission for that action." });
+    return null;
+  }
+
+  return session;
+};
+
+await ensureAdminUserStore({ logger: console });
+
 const server = http.createServer(async (req, res) => {
   if (!req.url || !req.method) {
     sendText(res, 400, "Bad request");
@@ -163,7 +197,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") {
     res.writeHead(204, {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
       "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
     });
     res.end();
@@ -179,7 +213,113 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === "GET" && pathname === "/api/auth/session") {
+    const session = await getRequestSession(req);
+    sendJson(res, 200, {
+      ok: true,
+      authenticated: Boolean(session?.user),
+      user: session?.user || null,
+      roles: ADMIN_ROLES,
+    });
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/api/auth/login") {
+    try {
+      const payload = await readJsonBody(req);
+      const session = await authenticateUser({
+        username: payload.username,
+        password: payload.password,
+      });
+      sendJson(res, 200, {
+        ok: true,
+        token: session.token,
+        user: session.user,
+        roles: ADMIN_ROLES,
+      });
+    } catch (error) {
+      sendJsonError(res, error, "Server error while logging in.");
+    }
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/api/auth/logout") {
+    revokeSession(getSessionTokenFromRequest(req));
+    sendJson(res, 200, { ok: true });
+    return;
+  }
+
+  if (req.method === "GET" && pathname === "/api/admin/users") {
+    const session = await requireSession(req, res, "manageUsers");
+    if (!session) return;
+
+    try {
+      sendJson(res, 200, {
+        ok: true,
+        users: await listAdminUsers(session.user),
+        currentUser: session.user,
+        roles: ADMIN_ROLES,
+      });
+    } catch (error) {
+      sendJsonError(res, error, "Server error while loading admin users.");
+    }
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/api/admin/users") {
+    const session = await requireSession(req, res, "manageUsers");
+    if (!session) return;
+
+    try {
+      const payload = await readJsonBody(req);
+      const user = await createAdminUser({
+        username: payload.username,
+        displayName: payload.displayName,
+        password: payload.password,
+        role: payload.role,
+        active: payload.active,
+      }, session.user);
+      sendJson(res, 201, {
+        ok: true,
+        user,
+        message: "Admin user created.",
+      });
+    } catch (error) {
+      sendJsonError(res, error, "Server error while creating admin user.");
+    }
+    return;
+  }
+
+  const adminUserMatch = pathname.match(/^\/api\/admin\/users\/([^/]+)$/);
+  if (req.method === "PATCH" && adminUserMatch) {
+    const session = await requireSession(req, res, "manageUsers");
+    if (!session) return;
+
+    try {
+      const payload = await readJsonBody(req);
+      const user = await updateAdminUser(adminUserMatch[1], {
+        username: payload.username,
+        displayName: payload.displayName,
+        password: payload.password,
+        role: payload.role,
+        active: payload.active,
+        actorUser: session.user,
+      });
+      sendJson(res, 200, {
+        ok: true,
+        user,
+        message: "Admin user updated.",
+      });
+    } catch (error) {
+      sendJsonError(res, error, "Server error while updating admin user.");
+    }
+    return;
+  }
+
   if (req.method === "GET" && pathname === "/api/bookings") {
+    const session = await requireSession(req, res, "readBookings");
+    if (!session) return;
+
     try {
       sendJson(res, 200, { ok: true, bookings: await listBookings() });
     } catch (error) {
@@ -203,6 +343,9 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === "POST" && pathname === "/api/bookings/manual") {
+    const session = await requireSession(req, res, "manageBookings");
+    if (!session) return;
+
     try {
       const record = await createManualBooking(await readJsonBody(req));
       sendJson(res, 201, {
@@ -218,6 +361,9 @@ const server = http.createServer(async (req, res) => {
 
   const statusMatch = pathname.match(/^\/api\/bookings\/([^/]+)\/status$/);
   if (req.method === "PATCH" && statusMatch) {
+    const session = await requireSession(req, res, "manageBookings");
+    if (!session) return;
+
     try {
       const body = await readJsonBody(req);
       const booking = await updateBookingStatus(statusMatch[1], body.status);
@@ -234,6 +380,9 @@ const server = http.createServer(async (req, res) => {
 
   const archiveMatch = pathname.match(/^\/api\/bookings\/([^/]+)\/archive$/);
   if (req.method === "PATCH" && archiveMatch) {
+    const session = await requireSession(req, res, "manageBookings");
+    if (!session) return;
+
     try {
       const body = await readJsonBody(req);
       const booking = await updateBookingArchive(archiveMatch[1], body.archived);
@@ -250,6 +399,9 @@ const server = http.createServer(async (req, res) => {
 
   const bookingMatch = pathname.match(/^\/api\/bookings\/([^/]+)$/);
   if (bookingMatch && req.method === "PATCH") {
+    const session = await requireSession(req, res, "manageBookings");
+    if (!session) return;
+
     try {
       const booking = await updateBooking(bookingMatch[1], await readJsonBody(req));
       sendJson(res, 200, {
@@ -264,6 +416,9 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (bookingMatch && req.method === "DELETE") {
+    const session = await requireSession(req, res, "manageBookings");
+    if (!session) return;
+
     try {
       const { deletedId } = await deleteBooking(bookingMatch[1]);
       sendJson(res, 200, {

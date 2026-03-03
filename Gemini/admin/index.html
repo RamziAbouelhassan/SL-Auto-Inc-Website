@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SL Auto Inc | Admin Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- FullCalendar library -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+
+    <!-- FullCalendar library -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+    <script src="app.js" defer></script>
+</head>
+
+<body>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <span style="font-size: 1.5rem;">⚙️</span> SL Auto Admin
+        </div>
+        <div class="nav-menu">
+            <div class="nav-item active" data-tab="pending">
+                Pending Requests <span class="badge" id="pendingCount">0</span>
+            </div>
+            <div class="nav-item" data-tab="accepted">
+                Accepted
+            </div>
+            <div class="nav-item" data-tab="archived">
+                Archived
+            </div>
+            <div class="nav-item" data-tab="calendar">
+                📅 Calendar
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="header" style="justify-content: space-between;">
+            <h2 id="pageTitle">Pending Requests</h2>
+            <button id="addBookingBtn" class="btn btn-accept"
+                style="display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.2rem;">
+                <span style="font-size: 1.2rem; font-weight: bold; line-height: 1;">+</span> New Booking
+            </button>
+        </header>
+
+        <div class="content-area">
+            <div id="bookingList" class="booking-list">
+                <div class="empty-state">Loading bookings...</div>
+            </div>
+
+            <div id="calendarView" style="display: none; height: 100%; min-height: 600px;">
+                <div id="calendar"></div>
+            </div>
+        </div>
+        </div>
+    </main>
+
+    <!-- Add Booking Modal -->
+    <div id="addBookingModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Manually Add Booking</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <form id="adminBookingForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>First Name</label>
+                        <input type="text" name="firstName" required class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Last Name</label>
+                        <input type="text" name="lastName" required class="form-control">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Phone</label>
+                        <input type="tel" name="phone" required class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" name="email" required class="form-control">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex: 0.5;">
+                        <label>Year</label>
+                        <input type="text" name="year" required class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Make</label>
+                        <input type="text" name="make" required class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Model</label>
+                        <input type="text" name="model" required class="form-control">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label>Concern / Request</label>
+                    <textarea name="concern" required class="form-control" style="min-height: 80px;"></textarea>
+                </div>
+                <button type="submit" class="btn btn-accept"
+                    style="width: 100%; margin-top: 1.5rem; padding: 1rem;">Create Booking</button>
+            </form>
+        </div>
+    </div>
+
+</body>
+
+</html>

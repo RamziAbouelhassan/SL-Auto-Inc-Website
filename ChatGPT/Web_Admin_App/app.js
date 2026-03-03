@@ -2,6 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "sl_auto_admin.web.apiBaseURL";
+  const AUTH_TOKEN_STORAGE_KEY = "sl_auto_admin.web.authToken";
   const ARCHIVE_RETENTION_DAYS = 30;
   const API_SERVICE_NAME = "sl-auto-booking-api";
   const DEFAULT_API_PORT = "4310";
@@ -59,6 +60,10 @@
     "Urgent - vehicle issue affecting drivability",
   ];
   const app = document.getElementById("app");
+  const heroSessionEl = document.getElementById("heroSession");
+  const heroAddButton = document.querySelector('[data-action="open-manual"]');
+  const heroRefreshButton = document.querySelector('[data-action="refresh"]');
+  const heroLogoutButton = document.querySelector('[data-action="logout"]');
 
   const state = {
     bookings: [],
@@ -66,6 +71,15 @@
     updatingIds: new Set(),
     errorMessage: "",
     apiBaseUrl: loadStoredBaseUrl(),
+    authToken: loadStoredAuthToken(),
+    authChecked: false,
+    isAuthenticating: false,
+    currentUser: null,
+    users: [],
+    isLoadingUsers: false,
+    isSavingUser: false,
+    showUserForm: false,
+    userEditor: createDefaultUserEditor(),
     lastLoadedAt: null,
     currentView: VIEWS.inbox,
     archivedFilter: ARCHIVED_FILTERS.all,
@@ -182,6 +196,213 @@
       preferredDate: getNextBookableDateValue(),
       timeWindow: TIME_WINDOW_OPTIONS[3],
     };
+  }
+
+  function createDefaultUserEditor() {
+    return {
+      id: "",
+      displayName: "",
+      username: "",
+      password: "",
+      role: "viewer",
+      active: true,
+      isNew: true,
+    };
+  }
+
+  function loadStoredAuthToken() {
+    try {
+      return String(window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || "").trim();
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function persistAuthToken(token) {
+    try {
+      if (token) {
+        window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+      } else {
+        window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+      }
+    } catch (_error) {
+      // Ignore storage errors.
+    }
+  }
+
+  function currentUser() {
+    return state.currentUser;
+  }
+
+  function canReadBookings() {
+    return Boolean(currentUser()?.permissions?.readBookings);
+  }
+
+  function canManageBookings() {
+    return Boolean(currentUser()?.permissions?.manageBookings);
+  }
+
+  function canManageUsers() {
+    return Boolean(currentUser()?.permissions?.manageUsers);
+  }
+
+  function canManageHeadUsers() {
+    return Boolean(currentUser()?.permissions?.manageHeadUsers);
+  }
+
+  function getAuthHeaders(extraHeaders = {}) {
+    const headers = { ...extraHeaders };
+    if (state.authToken) {
+      headers.Authorization = `Bearer ${state.authToken}`;
+    }
+    return headers;
+  }
+
+  function resetAuthenticatedState(message = "") {
+    state.authToken = "";
+    state.currentUser = null;
+    state.authChecked = true;
+    state.users = [];
+    state.bookings = [];
+    state.updatingIds.clear();
+    state.isLoading = false;
+    state.isLoadingUsers = false;
+    state.isCreatingManual = false;
+    state.isSavingReschedule = false;
+    state.isSavingUser = false;
+    state.showManualForm = false;
+    state.showRescheduleForm = false;
+    state.showUserForm = false;
+    state.manualSuccessMessage = "";
+    state.errorMessage = message;
+    persistAuthToken("");
+  }
+
+  async function fetchAuthSession() {
+    const response = await fetch(`${normalizeBaseUrl(state.apiBaseUrl)}/api/auth/session`, {
+      headers: getAuthHeaders(),
+    });
+
+    let payload = {};
+    try {
+      payload = await response.json();
+    } catch (_error) {
+      payload = {};
+    }
+
+    if (!response.ok) {
+      throw new Error(payload.error || "Could not validate the current admin session.");
+    }
+
+    return payload;
+  }
+
+  async function restoreSession() {
+    if (!state.authToken) {
+      state.authChecked = true;
+      render();
+      return false;
+    }
+
+    state.isAuthenticating = true;
+    render();
+
+    try {
+      const resolvedBaseUrl = await resolveWorkingBaseUrl(state.apiBaseUrl);
+      state.apiBaseUrl = resolvedBaseUrl;
+      window.localStorage.setItem(STORAGE_KEY, resolvedBaseUrl);
+
+      const payload = await fetchAuthSession();
+      if (!payload.authenticated || !payload.user) {
+        resetAuthenticatedState("");
+        return false;
+      }
+
+      state.currentUser = payload.user;
+      state.errorMessage = "";
+      state.authChecked = true;
+      return true;
+    } catch (error) {
+      resetAuthenticatedState(error?.message || "Could not restore the admin session.");
+      return false;
+    } finally {
+      state.isAuthenticating = false;
+      render();
+    }
+  }
+
+  async function login(username, password) {
+    state.isAuthenticating = true;
+    state.errorMessage = "";
+    render();
+
+    try {
+      const resolvedBaseUrl = await resolveWorkingBaseUrl(state.apiBaseUrl);
+      state.apiBaseUrl = resolvedBaseUrl;
+      window.localStorage.setItem(STORAGE_KEY, resolvedBaseUrl);
+
+      const response = await fetch(`${resolvedBaseUrl}/api/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, password }),
+      });
+      const payload = await parseResponse(response, "Could not sign in.");
+
+      state.authToken = String(payload.token || "");
+      persistAuthToken(state.authToken);
+      state.currentUser = payload.user || null;
+      state.authChecked = true;
+      state.errorMessage = "";
+      state.manualSuccessMessage = "";
+
+      await loadBookings();
+      if (canManageUsers()) {
+        await loadAdminUsers();
+      }
+    } catch (error) {
+      resetAuthenticatedState(error?.message || "Could not sign in.");
+    } finally {
+      state.isAuthenticating = false;
+      render();
+    }
+  }
+
+  async function logout() {
+    try {
+      if (state.authToken) {
+        await fetch(`${normalizeBaseUrl(state.apiBaseUrl)}/api/auth/logout`, {
+          method: "POST",
+          headers: getAuthHeaders(),
+        });
+      }
+    } catch (_error) {
+      // Ignore logout request failures and clear the local session anyway.
+    }
+
+    resetAuthenticatedState("");
+    render();
+  }
+
+  async function loadAdminUsers() {
+    if (!canManageUsers()) return;
+
+    state.isLoadingUsers = true;
+    render();
+
+    try {
+      const response = await fetch(`${normalizeBaseUrl(state.apiBaseUrl)}/api/admin/users`, {
+        headers: getAuthHeaders(),
+      });
+      const payload = await parseResponse(response, "Could not load admin users.");
+      state.users = Array.isArray(payload.users) ? payload.users : [];
+    } catch (error) {
+      state.errorMessage = error?.message || "Could not load admin users.";
+    } finally {
+      state.isLoadingUsers = false;
+      render();
+    }
   }
 
   function normalizeManualDraft(values = {}) {
@@ -310,7 +531,29 @@
     };
   }
 
-  document.addEventListener("DOMContentLoaded", init);
+  function readUserEditor(form) {
+    if (!form) return { ...state.userEditor };
+
+    const formData = new FormData(form);
+    return {
+      id: String(formData.get("userId") || "").trim(),
+      displayName: String(formData.get("displayName") || "").trim(),
+      username: String(formData.get("username") || "").trim().toLowerCase(),
+      password: String(formData.get("password") || ""),
+      role: String(formData.get("role") || "viewer").trim().toLowerCase(),
+      active: formData.get("active") === "on",
+      isNew: !String(formData.get("userId") || "").trim(),
+    };
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    init().catch((error) => {
+      state.authChecked = true;
+      state.isAuthenticating = false;
+      state.errorMessage = error?.message || "Could not start the admin app.";
+      render();
+    });
+  });
   window.addEventListener("hashchange", applyRouteFromHash);
   document.body.addEventListener("click", handleClick);
   document.body.addEventListener("input", handleManualDraftChange);
@@ -319,10 +562,20 @@
   document.body.addEventListener("change", handleDeskControlsChange);
   document.body.addEventListener("submit", handleSubmit);
 
-  function init() {
+  async function init() {
     applyRouteFromHash();
     render();
-    loadBookings();
+
+    const restored = await restoreSession();
+    if (!restored) return;
+
+    if (canReadBookings()) {
+      await loadBookings();
+    }
+
+    if (canManageUsers()) {
+      await loadAdminUsers();
+    }
   }
 
   function loadStoredBaseUrl() {
@@ -371,6 +624,8 @@
   }
 
   async function loadBookings() {
+    if (!canReadBookings()) return;
+
     state.isLoading = true;
     state.errorMessage = "";
     render();
@@ -385,7 +640,9 @@
       state.lastLoadedAt = new Date();
       reconcileSelection();
     } catch (error) {
-      state.errorMessage = await describeConnectionError(state.apiBaseUrl, error);
+      state.errorMessage = currentUser()
+        ? await describeConnectionError(state.apiBaseUrl, error)
+        : error?.message || "Sign in again to continue.";
     } finally {
       state.isLoading = false;
       render();
@@ -400,7 +657,9 @@
     try {
       const response = await fetch(url, {
         method,
-        headers: body ? { "Content-Type": "application/json" } : {},
+        headers: body
+          ? getAuthHeaders({ "Content-Type": "application/json" })
+          : getAuthHeaders(),
         body: body ? JSON.stringify(body) : undefined,
       });
       const payload = await parseResponse(response, fallbackError);
@@ -430,6 +689,10 @@
     }
 
     if (!response.ok) {
+      if (response.status === 401 && state.authToken) {
+        resetAuthenticatedState(payload.error || "Your session expired. Sign in again.");
+      }
+
       const details = Array.isArray(payload.details) ? payload.details.join(" ") : "";
       const message = payload.error || details || fallbackError;
       throw new Error(message);
@@ -439,7 +702,9 @@
   }
 
   async function fetchBookings(baseUrl) {
-    const response = await fetch(`${normalizeBaseUrl(baseUrl)}/api/bookings`);
+    const response = await fetch(`${normalizeBaseUrl(baseUrl)}/api/bookings`, {
+      headers: getAuthHeaders(),
+    });
     return parseResponse(response, "Server error loading bookings.");
   }
 
@@ -798,6 +1063,273 @@
     return STATUS_META[getResolvedStatus(booking)];
   }
 
+  function syncHeroChrome() {
+    const user = currentUser();
+    const canWrite = canManageBookings();
+
+    if (heroAddButton) {
+      heroAddButton.hidden = !canWrite;
+    }
+
+    if (heroRefreshButton) {
+      heroRefreshButton.hidden = !user;
+    }
+
+    if (heroLogoutButton) {
+      heroLogoutButton.hidden = !user;
+    }
+
+    if (heroSessionEl) {
+      heroSessionEl.innerHTML = user
+        ? `
+          <div class="hero-session-pill">
+            <strong>${escapeHtml(user.displayName || user.username)}</strong>
+            <span>${escapeHtml(user.roleLabel || user.role || "Admin")}</span>
+          </div>
+        `
+        : `
+          <div class="hero-session-pill is-logged-out">
+            <strong>Login required</strong>
+            <span>Bookings stay hidden until someone signs in.</span>
+          </div>
+        `;
+    }
+  }
+
+  function renderAuthLoading() {
+    return `
+      <section class="panel auth-panel auth-panel-single">
+        <div class="empty-state">
+          <strong>Checking admin session</strong>
+          <p>Loading the saved role and validating access to the booking desk.</p>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderLoginScreen() {
+    return `
+      <section class="panel auth-panel">
+        <div class="auth-panel-copy">
+          <p class="eyebrow">Protected admin access</p>
+          <h2>Sign in to see bookings</h2>
+          <p>
+            Only logged-in staff can open the booking desk now. Heads have full control, access managers can manage
+            staff except for the head admin, managers can work bookings, and viewers can review requests without
+            editing anything.
+          </p>
+
+          <div class="auth-role-list">
+            <article class="auth-role-card">
+              <strong>Head admin</strong>
+              <p>Full control over bookings and user roles.</p>
+            </article>
+            <article class="auth-role-card">
+              <strong>Access manager</strong>
+              <p>Booking control plus staff access management, except for the head admin account.</p>
+            </article>
+            <article class="auth-role-card">
+              <strong>Manager</strong>
+              <p>Full booking control without user management.</p>
+            </article>
+            <article class="auth-role-card">
+              <strong>Viewer</strong>
+              <p>Read-only booking visibility after login.</p>
+            </article>
+          </div>
+        </div>
+
+        <form class="auth-form" data-form="login">
+          <label>
+            <span class="field-label">Admin server URL</span>
+            <input
+              class="text-input"
+              type="text"
+              name="apiBaseUrl"
+              value="${escapeHtml(state.apiBaseUrl)}"
+              placeholder="http://localhost:4310"
+              autocomplete="off"
+              required
+            />
+          </label>
+
+          <label>
+            <span class="field-label">Username</span>
+            <input class="text-input" type="text" name="username" autocomplete="username" required />
+          </label>
+
+          <label>
+            <span class="field-label">Password</span>
+            <input class="text-input" type="password" name="password" autocomplete="current-password" required />
+          </label>
+
+          <div class="auth-form-actions">
+            <button class="primary-button" type="submit" ${state.isAuthenticating ? "disabled" : ""}>
+              ${state.isAuthenticating ? "Signing in..." : "Sign in"}
+            </button>
+            <button class="muted-button" type="button" data-action="login-localhost">Use localhost:4310</button>
+          </div>
+        </form>
+      </section>
+    `;
+  }
+
+  function renderSessionPanel() {
+    const user = currentUser();
+    if (!user) return "";
+
+    const accessMessage = canManageBookings()
+      ? canManageUsers()
+        ? canManageHeadUsers()
+          ? "You can manage bookings and all staff access."
+          : "You can manage bookings and staff access for everyone except the head admin."
+        : "You can manage bookings, but only a head admin can change staff access."
+      : "You have read-only booking access.";
+
+    return `
+      <section class="panel session-panel">
+        <div class="session-panel-copy">
+          <div>
+            <p class="eyebrow">Signed in</p>
+            <h2>${escapeHtml(user.displayName || user.username)}</h2>
+            <p>${escapeHtml(accessMessage)}</p>
+          </div>
+          <div class="session-panel-badges">
+            <span class="pill pill-blue">${escapeHtml(user.roleLabel || user.role || "Admin")}</span>
+            ${!canManageBookings() ? '<span class="pill pill-gray">Read only</span>' : ""}
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderAdminAccessPanel() {
+    if (!canManageUsers()) return "";
+
+    const userCards = state.users.length
+      ? state.users
+          .map((user) => {
+            const inactiveBadge = user.active ? "" : '<span class="badge badge-gray">Inactive</span>';
+            return `
+              <article class="team-user-card">
+                <div class="team-user-copy">
+                  <strong>${escapeHtml(user.displayName || user.username)}</strong>
+                  <p>@${escapeHtml(user.username)} · ${escapeHtml(user.roleLabel || user.role)}</p>
+                </div>
+                <div class="team-user-actions">
+                  <div class="badge-row">
+                    <span class="badge badge-blue">${escapeHtml(user.roleLabel || user.role)}</span>
+                    ${inactiveBadge}
+                  </div>
+                  <button class="ghost-button" type="button" data-action="edit-user" data-user-id="${escapeHtml(user.id)}">
+                    Edit access
+                  </button>
+                </div>
+              </article>
+            `;
+          })
+          .join("")
+      : renderEmptyState(
+          "No staff accounts yet",
+          "Create an access manager, manager, or viewer account so only logged-in staff can open this desk."
+        );
+
+    return `
+      <section class="panel team-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>Staff access</h2>
+            <p>${escapeHtml(
+              canManageHeadUsers()
+                ? "Create accounts, promote staff, and keep viewer logins read-only."
+                : "You can manage staff access for everyone except the head admin account."
+            )}</p>
+          </div>
+          <div class="modal-actions">
+            <span class="pill pill-amber">${state.isLoadingUsers ? "Loading..." : `${state.users.length} account${state.users.length === 1 ? "" : "s"}`}</span>
+            <button class="primary-button" type="button" data-action="open-user-form">Add account</button>
+          </div>
+        </div>
+
+        <div class="team-user-list">
+          ${userCards}
+        </div>
+      </section>
+    `;
+  }
+
+  function renderUserFormDialog() {
+    const editor = state.userEditor;
+    const title = editor.isNew ? "Create staff account" : "Edit staff account";
+    const submitLabel = state.isSavingUser ? "Saving..." : editor.isNew ? "Create account" : "Save changes";
+
+    return `
+      <section class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="admin-user-title">
+        <article class="panel modal-dialog modal-dialog-compact">
+          <div class="panel-heading">
+            <div>
+              <h2 id="admin-user-title">${escapeHtml(title)}</h2>
+              <p>Set the role and login details for this staff member.</p>
+            </div>
+            <div class="modal-actions">
+              <button class="ghost-button modal-close" type="button" data-action="close-user-form">Close</button>
+            </div>
+          </div>
+
+          <form class="manual-form" data-form="admin-user">
+            <input type="hidden" name="userId" value="${escapeHtml(editor.id)}" />
+
+            <div class="manual-form-grid">
+              <label>
+                <span class="field-label">Display name</span>
+                <input class="text-input" type="text" name="displayName" value="${escapeHtml(editor.displayName)}" required />
+              </label>
+
+              <label>
+                <span class="field-label">Username</span>
+                <input class="text-input" type="text" name="username" value="${escapeHtml(editor.username)}" required />
+              </label>
+
+              <label class="manual-form-span-two">
+                <span class="field-label">${editor.isNew ? "Password" : "New password"}</span>
+                <input
+                  class="text-input"
+                  type="password"
+                  name="password"
+                  value=""
+                  placeholder="${editor.isNew ? "At least 6 characters" : "Enter a new password"}"
+                  autocomplete="${editor.isNew ? "new-password" : "new-password"}"
+                  ${editor.isNew ? "required" : ""}
+                />
+                <span class="input-helper">
+                  ${escapeHtml(editor.isNew ? "Use at least 6 characters." : "Leave this blank to keep the current password.")}
+                </span>
+              </label>
+
+              <label>
+                <span class="field-label">Role</span>
+                <select class="text-input" name="role" required>
+                  ${renderRoleOptions(editor.role)}
+                </select>
+              </label>
+
+              <label class="manual-form-span-two checkbox-field">
+                <input type="checkbox" name="active" ${editor.active ? "checked" : ""} />
+                <span>Account is active and can sign in.</span>
+              </label>
+            </div>
+
+            <div class="manual-form-actions">
+              <button class="primary-button" type="submit" ${state.isSavingUser ? "disabled" : ""}>
+                ${escapeHtml(submitLabel)}
+              </button>
+            </div>
+          </form>
+        </article>
+      </section>
+    `;
+  }
+
   function render() {
     const activeElement = document.activeElement;
     const shouldRestoreDeskSearch =
@@ -808,15 +1340,37 @@
     const counts = getCounts();
     const booking = deskSelectedBooking();
 
+    if (!state.authChecked || (state.isAuthenticating && !currentUser())) {
+      app.innerHTML = `
+        ${state.errorMessage ? renderErrorBanner(state.errorMessage) : ""}
+        ${renderAuthLoading()}
+      `;
+      syncHeroChrome();
+      return;
+    }
+
+    if (!currentUser()) {
+      app.innerHTML = `
+        ${state.errorMessage ? renderErrorBanner(state.errorMessage) : ""}
+        ${renderLoginScreen()}
+      `;
+      syncHeroChrome();
+      return;
+    }
+
     app.innerHTML = `
+      ${renderSessionPanel()}
       ${renderTopGrid(counts)}
+      ${renderAdminAccessPanel()}
       ${state.manualSuccessMessage ? `<section class="success-banner">${escapeHtml(state.manualSuccessMessage)}</section>` : ""}
       ${state.errorMessage ? renderErrorBanner(state.errorMessage) : ""}
       ${renderModeSwitcher()}
       ${state.detailMode === DETAIL_MODES.calendar ? renderCalendarWorkspace() : renderDeskWorkspace(counts, booking)}
       ${state.showManualForm ? renderManualEntryDialog() : ""}
       ${state.showRescheduleForm ? renderRescheduleDialog() : ""}
+      ${state.showUserForm ? renderUserFormDialog() : ""}
     `;
+    syncHeroChrome();
 
     if (shouldRestoreDeskSearch) {
       const deskSearchInput = app.querySelector("[data-desk-search]");
@@ -1063,6 +1617,28 @@
 
     const placeholderSelected = selectedValue ? "" : "selected";
     return `<option value="" ${placeholderSelected}>${escapeHtml(placeholder)}</option>${optionMarkup}`;
+  }
+
+  function renderRoleOptions(selectedRole) {
+    const options = canManageHeadUsers()
+      ? [
+          ["head", "Head admin"],
+          ["access_manager", "Access manager"],
+          ["manager", "Manager"],
+          ["viewer", "Viewer"],
+        ]
+      : [
+          ["access_manager", "Access manager"],
+          ["manager", "Manager"],
+          ["viewer", "Viewer"],
+        ];
+
+    return options
+      .map(([value, label]) => {
+        const selected = value === selectedRole ? "selected" : "";
+        return `<option value="${value}" ${selected}>${escapeHtml(label)}</option>`;
+      })
+      .join("");
   }
 
   function renderErrorBanner(message) {
@@ -1357,6 +1933,10 @@
   }
 
   function renderActionRow(booking) {
+    if (!canManageBookings()) {
+      return '<div class="action-row single"><span class="pill pill-gray">Read-only access</span></div>';
+    }
+
     const updating = state.updatingIds.has(booking.id);
     const buttons = [];
 
@@ -1522,9 +2102,13 @@
             <span class="badge badge-${statusMeta.tone}">${statusMeta.label}</span>
             ${isUrgent(booking) ? '<span class="badge badge-red">Urgent</span>' : ""}
           </div>
-          <button class="ghost-button calendar-reschedule-button" type="button" data-action="reschedule" data-booking-id="${booking.id}">
-            Reschedule
-          </button>
+          ${canManageBookings()
+            ? `
+              <button class="ghost-button calendar-reschedule-button" type="button" data-action="reschedule" data-booking-id="${booking.id}">
+                Reschedule
+              </button>
+            `
+            : ""}
         </div>
       </article>
     `;
@@ -1740,6 +2324,7 @@
     if (modalBackdrop && event.target === modalBackdrop) {
       const manualForm = modalBackdrop.querySelector('[data-form="manual-booking"]');
       const rescheduleForm = modalBackdrop.querySelector('[data-form="reschedule-booking"]');
+      const userForm = modalBackdrop.querySelector('[data-form="admin-user"]');
       if (manualForm) {
         state.manualDraft = readManualDraft(manualForm);
         state.showManualForm = false;
@@ -1747,6 +2332,10 @@
       if (rescheduleForm) {
         state.rescheduleDraft = readRescheduleDraft(rescheduleForm);
         state.showRescheduleForm = false;
+      }
+      if (userForm) {
+        state.userEditor = readUserEditor(userForm);
+        state.showUserForm = false;
       }
       render();
       return;
@@ -1769,12 +2358,32 @@
 
       if (action === "refresh") {
         event.preventDefault();
+        if (!canReadBookings()) return;
         await loadBookings();
+        return;
+      }
+
+      if (action === "logout") {
+        event.preventDefault();
+        await logout();
+        return;
+      }
+
+      if (action === "login-localhost") {
+        event.preventDefault();
+        state.apiBaseUrl = `http://localhost:${DEFAULT_API_PORT}`;
+        window.localStorage.setItem(STORAGE_KEY, state.apiBaseUrl);
+        render();
         return;
       }
 
       if (action === "open-manual") {
         event.preventDefault();
+        if (!canManageBookings()) {
+          state.errorMessage = "Your account is read-only.";
+          render();
+          return;
+        }
         state.showManualForm = true;
         state.manualSuccessMessage = "";
         render();
@@ -1797,6 +2406,50 @@
         return;
       }
 
+      if (action === "open-user-form") {
+        event.preventDefault();
+        if (!canManageUsers()) {
+          state.errorMessage = "Only a head admin can change staff access.";
+          render();
+          return;
+        }
+        state.userEditor = createDefaultUserEditor();
+        state.showUserForm = true;
+        render();
+        return;
+      }
+
+      if (action === "edit-user") {
+        event.preventDefault();
+        if (!canManageUsers()) {
+          state.errorMessage = "Only a head admin can change staff access.";
+          render();
+          return;
+        }
+        const user = state.users.find((entry) => entry.id === bookingId || entry.id === actionButton.dataset.userId);
+        if (!user) return;
+        state.userEditor = {
+          id: user.id,
+          displayName: user.displayName || user.username,
+          username: user.username,
+          password: "",
+          role: user.role,
+          active: user.active !== false,
+          isNew: false,
+        };
+        state.showUserForm = true;
+        render();
+        return;
+      }
+
+      if (action === "close-user-form") {
+        event.preventDefault();
+        state.userEditor = readUserEditor(document.querySelector('[data-form="admin-user"]'));
+        state.showUserForm = false;
+        render();
+        return;
+      }
+
       if (action === "use-localhost") {
         event.preventDefault();
         state.apiBaseUrl = `http://localhost:${DEFAULT_API_PORT}`;
@@ -1809,6 +2462,11 @@
       event.preventDefault();
 
       if (action === "reschedule") {
+        if (!canManageBookings()) {
+          state.errorMessage = "Your account is read-only.";
+          render();
+          return;
+        }
         openRescheduleDialog(bookingId);
         render();
         return;
@@ -1817,6 +2475,11 @@
       const baseUrl = normalizeBaseUrl(state.apiBaseUrl);
 
       if (action === "accept") {
+        if (!canManageBookings()) {
+          state.errorMessage = "Your account is read-only.";
+          render();
+          return;
+        }
         await mutateBooking(
           bookingId,
           `${baseUrl}/api/bookings/${bookingId}/status`,
@@ -1828,6 +2491,11 @@
       }
 
       if (action === "reject") {
+        if (!canManageBookings()) {
+          state.errorMessage = "Your account is read-only.";
+          render();
+          return;
+        }
         await mutateBooking(
           bookingId,
           `${baseUrl}/api/bookings/${bookingId}/status`,
@@ -1839,6 +2507,11 @@
       }
 
       if (action === "archive") {
+        if (!canManageBookings()) {
+          state.errorMessage = "Your account is read-only.";
+          render();
+          return;
+        }
         await mutateBooking(
           bookingId,
           `${baseUrl}/api/bookings/${bookingId}/archive`,
@@ -1850,6 +2523,11 @@
       }
 
       if (action === "restore") {
+        if (!canManageBookings()) {
+          state.errorMessage = "Your account is read-only.";
+          render();
+          return;
+        }
         await mutateBooking(
           bookingId,
           `${baseUrl}/api/bookings/${bookingId}/archive`,
@@ -1861,6 +2539,11 @@
       }
 
       if (action === "delete") {
+        if (!canManageBookings()) {
+          state.errorMessage = "Your account is read-only.";
+          render();
+          return;
+        }
         const confirmed = window.confirm("Delete this booking permanently?");
         if (!confirmed) return;
 
@@ -2010,9 +2693,25 @@
   }
 
   async function handleSubmit(event) {
+    const loginForm = event.target.closest('[data-form="login"]');
+    if (loginForm) {
+      event.preventDefault();
+      const formData = new FormData(loginForm);
+      state.apiBaseUrl = normalizeBaseUrl(formData.get("apiBaseUrl"));
+      window.localStorage.setItem(STORAGE_KEY, state.apiBaseUrl);
+      await login(formData.get("username"), formData.get("password"));
+      return;
+    }
+
     const manualForm = event.target.closest('[data-form="manual-booking"]');
     if (manualForm) {
       event.preventDefault();
+
+      if (!canManageBookings()) {
+        state.errorMessage = "Your account is read-only.";
+        render();
+        return;
+      }
 
       const manualDraft = readManualDraft(manualForm);
       state.manualDraft = manualDraft;
@@ -2033,9 +2732,9 @@
 
         const response = await fetch(`${resolvedBaseUrl}/api/bookings/manual`, {
           method: "POST",
-          headers: {
+          headers: getAuthHeaders({
             "Content-Type": "application/json",
-          },
+          }),
           body: JSON.stringify(manualDraft),
         });
         const payload = await parseResponse(response, "Could not save manual booking.");
@@ -2066,6 +2765,13 @@
     const rescheduleForm = event.target.closest('[data-form="reschedule-booking"]');
     if (rescheduleForm) {
       event.preventDefault();
+
+      if (!canManageBookings()) {
+        state.errorMessage = "Your account is read-only.";
+        render();
+        return;
+      }
+
       const nextDraft = readRescheduleDraft(rescheduleForm);
       state.rescheduleDraft = nextDraft;
 
@@ -2089,9 +2795,9 @@
 
         const response = await fetch(`${resolvedBaseUrl}/api/bookings/${encodeURIComponent(nextDraft.bookingId)}`, {
           method: "PATCH",
-          headers: {
+          headers: getAuthHeaders({
             "Content-Type": "application/json",
-          },
+          }),
           body: JSON.stringify({
             name: booking.name,
             phone: booking.phone,
@@ -2125,6 +2831,91 @@
         state.errorMessage = error?.message || "Could not reschedule booking.";
       } finally {
         state.isSavingReschedule = false;
+        render();
+      }
+      return;
+    }
+
+    const userForm = event.target.closest('[data-form="admin-user"]');
+    if (userForm) {
+      event.preventDefault();
+
+      if (!canManageUsers()) {
+        state.errorMessage = "Only a head admin can change staff access.";
+        render();
+        return;
+      }
+
+      const editor = readUserEditor(userForm);
+      state.userEditor = editor;
+
+      if (!userForm.reportValidity()) {
+        return;
+      }
+
+      state.isSavingUser = true;
+      state.errorMessage = "";
+      render();
+
+      try {
+        const isNew = !editor.id;
+        const response = await fetch(
+          isNew
+            ? `${normalizeBaseUrl(state.apiBaseUrl)}/api/admin/users`
+            : `${normalizeBaseUrl(state.apiBaseUrl)}/api/admin/users/${encodeURIComponent(editor.id)}`,
+          {
+            method: isNew ? "POST" : "PATCH",
+            headers: getAuthHeaders({
+              "Content-Type": "application/json",
+            }),
+            body: JSON.stringify({
+              displayName: editor.displayName,
+              username: editor.username,
+              password: editor.password,
+              role: editor.role,
+              active: editor.active,
+            }),
+          }
+        );
+        const payload = await parseResponse(response, "Could not save admin user.");
+        const savedUser = payload.user;
+
+        if (savedUser) {
+          const nextUsers = [...state.users];
+          const existingIndex = nextUsers.findIndex((entry) => entry.id === savedUser.id);
+          if (existingIndex >= 0) {
+            nextUsers[existingIndex] = savedUser;
+          } else {
+            nextUsers.push(savedUser);
+          }
+          nextUsers.sort((left, right) =>
+            String(left.displayName || left.username).localeCompare(String(right.displayName || right.username))
+          );
+          state.users = nextUsers;
+
+          if (currentUser() && savedUser.id === currentUser().id) {
+            if (savedUser.active === false) {
+              resetAuthenticatedState("Your account is no longer active. Sign in with another account.");
+              return;
+            }
+
+            state.currentUser = savedUser;
+            if (!canManageUsers()) {
+              state.users = [];
+            } else if (!canManageHeadUsers()) {
+              state.users = state.users.filter((entry) => entry.role !== "head");
+            }
+          }
+        } else {
+          await loadAdminUsers();
+        }
+
+        state.showUserForm = false;
+        state.userEditor = createDefaultUserEditor();
+      } catch (error) {
+        state.errorMessage = error?.message || "Could not save admin user.";
+      } finally {
+        state.isSavingUser = false;
         render();
       }
       return;
