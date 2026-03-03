@@ -14,10 +14,19 @@ It also includes a small local server so the web UI and booking API can run toge
 ## How to use it
 
 1. Open a terminal in `/Users/ramzi/Desktop/New Coding/My Projects/SL-Auto-Inc-Website/ChatGPT/Web_Admin_App`.
-2. Run `npm start`.
-3. On the first run, the server bootstraps a head admin account and prints the username/password once.
-4. Open the printed URL, usually `http://localhost:4310`.
-5. On iPhone, use the LAN URL printed by the server, for example `http://192.168.1.231:4310`.
+2. If you want the admin app to read the same live bookings as the website, create either:
+   - `ChatGPT/Web_Admin_App/.env`, or
+   - `ChatGPT/backend/.env`
+3. Add these values to that `.env` file:
+   - `SUPABASE_URL=...`
+   - `SUPABASE_SERVICE_ROLE_KEY=...`
+   - `SUPABASE_TABLE=bookings`
+4. Run `npm start`.
+5. On the first run, the server bootstraps a head admin account and prints the username/password once.
+6. Open the printed URL, usually `http://localhost:4310`.
+7. On iPhone, use the LAN URL printed by the server, for example `http://192.168.1.231:4310`.
+
+At startup the server now prints whether bookings are being loaded from `Supabase` or from the local demo file.
 
 ## Admin access roles
 

@@ -20,6 +20,7 @@ import {
   createBooking,
   createManualBooking,
   deleteBooking,
+  getStorageDetails,
   listBookings,
   updateBooking,
   updateBookingArchive,
@@ -28,6 +29,12 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const BACKEND_ROOT = path.resolve(__dirname, "..", "backend");
+
+await loadLocalEnvFiles([
+  path.join(__dirname, ".env"),
+  path.join(BACKEND_ROOT, ".env"),
+]);
 
 const HOST = (process.env.HOST || "0.0.0.0").trim();
 const PORT = Number(process.env.PORT || 4310);
@@ -94,6 +101,36 @@ const sendJsonError = (res, error, fallbackMessage) => {
   console.error(fallbackMessage, error);
   return sendJson(res, 500, { ok: false, error: fallbackMessage });
 };
+
+async function loadLocalEnvFiles(filePaths) {
+  for (const filePath of filePaths) {
+    try {
+      const raw = await fs.readFile(filePath, "utf8");
+      applyEnvFile(raw);
+    } catch (error) {
+      if (error?.code !== "ENOENT") {
+        console.warn(`Could not read env file at ${filePath}`, error);
+      }
+    }
+  }
+}
+
+function applyEnvFile(raw) {
+  raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"))
+    .forEach((line) => {
+      const separatorIndex = line.indexOf("=");
+      if (separatorIndex <= 0) return;
+
+      const key = line.slice(0, separatorIndex).trim();
+      if (!key || Object.hasOwn(process.env, key)) return;
+
+      const value = line.slice(separatorIndex + 1).trim().replace(/^['"]|['"]$/g, "");
+      process.env[key] = value;
+    });
+}
 
 const readJsonBody = async (req) =>
   new Promise((resolve, reject) => {
@@ -445,5 +482,11 @@ server.listen(PORT, HOST, () => {
   getAccessibleUrls(HOST, PORT).forEach((url) => {
     console.log(`- ${url}`);
   });
+  const storageDetails = getStorageDetails();
+  if (storageDetails.usingSupabase) {
+    console.log("Booking storage: Supabase");
+  } else {
+    console.log(`Booking storage file: ${storageDetails.bookingsFile}`);
+  }
   console.log("API health path: /health");
 });
