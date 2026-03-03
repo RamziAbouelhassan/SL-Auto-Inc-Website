@@ -533,11 +533,21 @@ async function supabaseRequest(query, { method = "GET", body, prefer } = {}) {
     headers.Prefer = prefer;
   }
 
-  const response = await fetch(`${supabaseConfig.url}/rest/v1/${query}`, {
-    method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  const endpoint = `${supabaseConfig.url}/rest/v1/${query}`;
+  let response;
+
+  try {
+    response = await fetch(endpoint, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch (error) {
+    throw new BookingError(
+      500,
+      `Could not reach Supabase. ${error?.message || "Network request failed."}`
+    );
+  }
 
   const rawText = await response.text();
   const payload = rawText ? tryParseJson(rawText) : null;
