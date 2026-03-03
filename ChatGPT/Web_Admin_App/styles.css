@@ -250,19 +250,16 @@ button {
 }
 
 .summary-pills {
-  grid-template-columns: auto minmax(12rem, 1fr) minmax(12rem, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: center;
 }
 
-.summary-pill-wide {
+.summary-pill-wide,
+.summary-pills .pill {
   width: 100%;
   justify-content: center;
   padding: 0.8rem 1.2rem;
   font-size: 0.98rem;
-}
-
-.summary-pills .pill-red {
-  grid-column: 1 / -1;
 }
 
 .summary-insights {
@@ -446,13 +443,21 @@ button {
   color: var(--amber);
 }
 
+.summary-count-stack {
+  display: grid;
+  justify-items: center;
+  gap: 0.45rem;
+  text-align: center;
+}
+
 .dashboard-kpi {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 4rem;
-  padding: 0.75rem 1.05rem;
-  border-radius: 1.1rem;
+  min-width: 4.1rem;
+  min-height: 3.6rem;
+  padding: 0.55rem 0.95rem;
+  border-radius: 1rem;
   background: linear-gradient(135deg, rgba(43, 109, 246, 0.14), rgba(181, 106, 29, 0.14));
   color: var(--ink);
   font-size: 1.45rem;
@@ -463,6 +468,7 @@ button {
   color: var(--muted);
   font-size: 0.9rem;
   font-weight: 700;
+  line-height: 1;
 }
 
 .connection-form {
@@ -504,11 +510,17 @@ button {
   gap: 0.8rem;
 }
 
+.team-role-group {
+  display: grid;
+  gap: 0.8rem;
+}
+
 .auth-role-card,
 .team-user-card {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
+  align-items: center;
   padding: 1rem 1.05rem;
   border-radius: var(--radius-lg);
   border: 1px solid rgba(23, 28, 35, 0.08);
@@ -581,8 +593,25 @@ button {
   justify-items: end;
 }
 
+.team-user-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.team-user-controls .badge,
+.team-user-controls .ghost-button {
+  font-size: 0.95rem;
+}
+
 .team-user-copy strong {
   font-size: 1rem;
+}
+
+.team-user-copy p {
+  margin: 0.15rem 0 0;
 }
 
 .manual-form {
@@ -674,6 +703,33 @@ button {
   line-height: 1.45;
 }
 
+.password-field {
+  position: relative;
+}
+
+.password-input {
+  padding-right: 8rem;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 3.3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 6rem;
+  height: 2.75rem;
+  margin: auto 0;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.8);
+  line-height: 1;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
 .text-input {
   width: 100%;
   padding: 0.95rem 1rem;
@@ -696,6 +752,10 @@ button {
 .manual-form select.text-input {
   height: 5rem;
   padding: 0 1.35rem;
+}
+
+.manual-form .password-input {
+  padding-right: 8.6rem;
 }
 
 .manual-form select.text-input,
@@ -1352,6 +1412,24 @@ button {
 
 .modal-dialog-compact {
   width: min(100%, 38rem);
+}
+
+.calendar-booking-dialog .detail-section {
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid rgba(23, 28, 35, 0.08);
+}
+
+.calendar-booking-dialog .meta-label {
+  color: var(--muted);
+}
+
+.calendar-booking-dialog .concern-copy,
+.calendar-booking-dialog .panel-heading p {
+  color: var(--muted);
+}
+
+.calendar-booking-actions {
+  justify-content: flex-start;
 }
 
 .reschedule-date-display {

@@ -59,6 +59,12 @@
     "Soon (next 1-2 days)",
     "Urgent - vehicle issue affecting drivability",
   ];
+  const ACCESS_LEVEL_RANK = {
+    head: 4,
+    access_manager: 3,
+    manager: 2,
+    viewer: 1,
+  };
   const app = document.getElementById("app");
   const heroSessionEl = document.getElementById("heroSession");
   const heroAddButton = document.querySelector('[data-action="open-manual"]');
@@ -97,6 +103,8 @@
     rescheduleCalendarMonth: getMonthStartValue(new Date()),
     isSavingReschedule: false,
     showRescheduleForm: false,
+    showCalendarBookingDialog: false,
+    calendarDialogBookingId: "",
     sectionOpen: {
       pending: false,
       accepted: false,
@@ -250,6 +258,74 @@
     return Boolean(currentUser()?.permissions?.manageHeadUsers);
   }
 
+  function getAccessLevelRank(role) {
+    return ACCESS_LEVEL_RANK[String(role || "").trim().toLowerCase()] || 0;
+  }
+
+  function sortAdminUsers(users) {
+    return [...users].sort((left, right) => {
+      const roleCompare = getAccessLevelRank(right?.role) - getAccessLevelRank(left?.role);
+      if (roleCompare !== 0) return roleCompare;
+
+      const leftName = String(left?.displayName || left?.username || "").toLowerCase();
+      const rightName = String(right?.displayName || right?.username || "").toLowerCase();
+      return leftName.localeCompare(rightName);
+    });
+  }
+
+  function getAdminRoleLabel(role) {
+    const normalizedRole = String(role || "").trim().toLowerCase();
+    if (normalizedRole === "head") return "Head admin";
+    if (normalizedRole === "access_manager") return "Access manager";
+    if (normalizedRole === "manager") return "Manager";
+    return "Viewer";
+  }
+
+  function getAccessChangeWarning(existingUser, nextUser) {
+    if (!existingUser || !nextUser) return "";
+
+    const wasActive = existingUser.active !== false;
+    const willBeActive = nextUser.active !== false;
+    const isRoleDowngrade =
+      wasActive &&
+      willBeActive &&
+      getAccessLevelRank(nextUser.role) < getAccessLevelRank(existingUser.role);
+    const isDeactivation = wasActive && !willBeActive;
+
+    if (!isRoleDowngrade && !isDeactivation) return "";
+
+    const name = existingUser.displayName || existingUser.username || "this account";
+
+    if (isRoleDowngrade && isDeactivation) {
+      return `Are you sure you want to lower ${name}'s access from ${getAdminRoleLabel(existingUser.role)} to ${getAdminRoleLabel(nextUser.role)} and deactivate the account?`;
+    }
+
+    if (isDeactivation) {
+      return `Are you sure you want to deactivate ${name}'s account?`;
+    }
+
+    return `Are you sure you want to lower ${name}'s access from ${getAdminRoleLabel(existingUser.role)} to ${getAdminRoleLabel(nextUser.role)}?`;
+  }
+
+  function renderPasswordField({ name, value = "", placeholder = "", autocomplete = "current-password", required = false }) {
+    return `
+      <div class="password-field">
+        <input
+          class="text-input password-input"
+          type="password"
+          name="${escapeHtml(name)}"
+          value="${escapeHtml(value)}"
+          placeholder="${escapeHtml(placeholder)}"
+          autocomplete="${escapeHtml(autocomplete)}"
+          ${required ? "required" : ""}
+        />
+        <button class="ghost-button password-toggle" type="button" data-action="toggle-password" aria-label="Show password">
+          Show
+        </button>
+      </div>
+    `;
+  }
+
   function getAuthHeaders(extraHeaders = {}) {
     const headers = { ...extraHeaders };
     if (state.authToken) {
@@ -273,6 +349,8 @@
     state.showManualForm = false;
     state.showRescheduleForm = false;
     state.showUserForm = false;
+    state.showCalendarBookingDialog = false;
+    state.calendarDialogBookingId = "";
     state.manualSuccessMessage = "";
     state.errorMessage = message;
     persistAuthToken("");
@@ -396,7 +474,7 @@
         headers: getAuthHeaders(),
       });
       const payload = await parseResponse(response, "Could not load admin users.");
-      state.users = Array.isArray(payload.users) ? payload.users : [];
+      state.users = Array.isArray(payload.users) ? sortAdminUsers(payload.users) : [];
     } catch (error) {
       state.errorMessage = error?.message || "Could not load admin users.";
     } finally {
@@ -1005,6 +1083,37 @@
     return Boolean(normalizeSearchText(state.deskSearchQuery)) || state.deskFilter !== DESK_FILTERS.all;
   }
 
+  function getDeskDestinationForBooking(booking) {
+    if (!booking) {
+      return {
+        view: VIEWS.inbox,
+        archivedFilter: ARCHIVED_FILTERS.all,
+      };
+    }
+
+    if (isArchived(booking)) {
+      return {
+        view: VIEWS.archived,
+        archivedFilter:
+          getResolvedStatus(booking) === "rejected"
+            ? ARCHIVED_FILTERS.rejected
+            : ARCHIVED_FILTERS.completed,
+      };
+    }
+
+    if (getResolvedStatus(booking) === "rejected") {
+      return {
+        view: VIEWS.rejected,
+        archivedFilter: ARCHIVED_FILTERS.all,
+      };
+    }
+
+    return {
+      view: VIEWS.inbox,
+      archivedFilter: ARCHIVED_FILTERS.all,
+    };
+  }
+
   function deskSelectedBooking() {
     const booking = selectedBooking();
     if (!booking) return null;
@@ -1160,7 +1269,12 @@
 
           <label>
             <span class="field-label">Password</span>
-            <input class="text-input" type="password" name="password" autocomplete="current-password" required />
+            ${renderPasswordField({
+              name: "password",
+              placeholder: "",
+              autocomplete: "current-password",
+              required: true,
+            })}
           </label>
 
           <div class="auth-form-actions">
@@ -1206,26 +1320,55 @@
   function renderAdminAccessPanel() {
     if (!canManageUsers()) return "";
 
+    const groupedUsers = state.users.reduce((groups, user) => {
+      const role = String(user.role || "viewer").trim().toLowerCase();
+      if (!groups[role]) {
+        groups[role] = [];
+      }
+      groups[role].push(user);
+      return groups;
+    }, {});
+
+    const groupOrder = ["head", "access_manager", "manager", "viewer"];
     const userCards = state.users.length
-      ? state.users
-          .map((user) => {
-            const inactiveBadge = user.active ? "" : '<span class="badge badge-gray">Inactive</span>';
+      ? groupOrder
+          .filter((role) => Array.isArray(groupedUsers[role]) && groupedUsers[role].length)
+          .map((role) => {
+            const users = groupedUsers[role];
+            const roleLabel = users[0]?.roleLabel || getAdminRoleLabel(role);
             return `
-              <article class="team-user-card">
-                <div class="team-user-copy">
-                  <strong>${escapeHtml(user.displayName || user.username)}</strong>
-                  <p>@${escapeHtml(user.username)} · ${escapeHtml(user.roleLabel || user.role)}</p>
-                </div>
-                <div class="team-user-actions">
-                  <div class="badge-row">
-                    <span class="badge badge-blue">${escapeHtml(user.roleLabel || user.role)}</span>
-                    ${inactiveBadge}
+              <section class="team-role-group">
+                <div class="section-heading">
+                  <div>
+                    <h3>${escapeHtml(roleLabel)}</h3>
+                    <p>${users.length} account${users.length === 1 ? "" : "s"}</p>
                   </div>
-                  <button class="ghost-button" type="button" data-action="edit-user" data-user-id="${escapeHtml(user.id)}">
-                    Edit access
-                  </button>
                 </div>
-              </article>
+                <div class="team-user-list">
+                  ${users
+                    .map((user) => {
+                      const inactiveBadge = user.active ? "" : '<span class="badge badge-gray">Inactive</span>';
+                      return `
+                        <article class="team-user-card">
+                          <div class="team-user-copy">
+                            <strong>${escapeHtml(user.displayName || user.username)}</strong>
+                            <p>@${escapeHtml(user.username)} · ${escapeHtml(user.roleLabel || user.role)}</p>
+                          </div>
+                          <div class="team-user-actions">
+                            <div class="team-user-controls">
+                              <span class="badge badge-blue">${escapeHtml(user.roleLabel || user.role)}</span>
+                              ${inactiveBadge}
+                              <button class="ghost-button" type="button" data-action="edit-user" data-user-id="${escapeHtml(user.id)}">
+                                Edit access
+                              </button>
+                            </div>
+                          </div>
+                        </article>
+                      `;
+                    })
+                    .join("")}
+                </div>
+              </section>
             `;
           })
           .join("")
@@ -1292,15 +1435,13 @@
 
               <label class="manual-form-span-two">
                 <span class="field-label">${editor.isNew ? "Password" : "New password"}</span>
-                <input
-                  class="text-input"
-                  type="password"
-                  name="password"
-                  value=""
-                  placeholder="${editor.isNew ? "At least 6 characters" : "Enter a new password"}"
-                  autocomplete="${editor.isNew ? "new-password" : "new-password"}"
-                  ${editor.isNew ? "required" : ""}
-                />
+                ${renderPasswordField({
+                  name: "password",
+                  value: "",
+                  placeholder: editor.isNew ? "At least 6 characters" : "Enter a new password",
+                  autocomplete: "new-password",
+                  required: editor.isNew,
+                })}
                 <span class="input-helper">
                   ${escapeHtml(editor.isNew ? "Use at least 6 characters." : "Leave this blank to keep the current password.")}
                 </span>
@@ -1369,6 +1510,7 @@
       ${state.showManualForm ? renderManualEntryDialog() : ""}
       ${state.showRescheduleForm ? renderRescheduleDialog() : ""}
       ${state.showUserForm ? renderUserFormDialog() : ""}
+      ${state.showCalendarBookingDialog ? renderCalendarBookingDialog() : ""}
     `;
     syncHeroChrome();
 
@@ -1392,6 +1534,7 @@
     const oldestPending = getOldestPendingBooking(counts.pending);
     const latestAccepted = getLatestAcceptedBooking(counts.accepted);
     const nextScheduled = getNextScheduledBooking([...counts.pending, ...counts.accepted]);
+    const urgentBookingCount = [...counts.pending, ...counts.accepted].filter(isUrgent).length;
     const todaysBookingCount = [...counts.pending, ...counts.accepted].filter(
       (booking) => getBookingDateValue(booking) === getTodayDateValue()
     ).length;
@@ -1404,7 +1547,7 @@
               <h2>Booking inbox</h2>
               <p>Track pending requests, accepted work, and older archived records in one place.</p>
             </div>
-            <div>
+            <div class="summary-count-stack">
               <div class="dashboard-kpi">${counts.activeCount}</div>
               <div class="count-label">active</div>
             </div>
@@ -1414,7 +1557,7 @@
             <span class="pill pill-${connectionTone}">${state.isLoading ? '<span class="loading-dot"></span>' : ""}${connectionLabel}</span>
             <span class="pill pill-blue summary-pill-wide">${counts.pending.length} pending</span>
             <span class="pill pill-green summary-pill-wide">${counts.accepted.length} accepted</span>
-            ${state.bookings.some(isUrgent) ? '<span class="pill pill-red">Urgent bookings</span>' : ""}
+            ${urgentBookingCount ? `<span class="pill pill-red">${urgentBookingCount} urgent</span>` : ""}
           </div>
 
           <div class="summary-insights">
@@ -2204,6 +2347,100 @@
     `;
   }
 
+  function renderCalendarBookingDialog() {
+    const booking = state.bookings.find((entry) => entry.id === state.calendarDialogBookingId);
+    if (!booking) return "";
+
+    const statusMeta = getStatusMeta(booking);
+
+    return `
+      <section class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="calendar-booking-title">
+        <article class="panel modal-dialog modal-dialog-compact calendar-booking-dialog" data-calendar-booking-dialog="true">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Calendar quick view</p>
+              <h2 id="calendar-booking-title">${escapeHtml(booking.name || "Unnamed booking")}</h2>
+              <p>${escapeHtml(booking.serviceType || "Booking")} · ${escapeHtml(getVehicleLabel(booking) || "Vehicle details missing")}</p>
+            </div>
+            <div class="modal-actions">
+              <span class="badge badge-${statusMeta.tone}">${escapeHtml(statusMeta.label)}</span>
+              ${isUrgent(booking) ? '<span class="badge badge-red">Urgent</span>' : ""}
+              <button class="ghost-button modal-close" type="button" data-action="close-calendar-booking">Close</button>
+            </div>
+          </div>
+
+          <div class="detail-stack">
+            <section class="detail-section">
+              <h4>Schedule</h4>
+              <div class="meta-grid">
+                <span class="meta-label">Preferred date</span>
+                <span class="meta-value">${escapeHtml(formatPreferredDate(booking.preferredDate))}</span>
+                <span class="meta-label">Time window</span>
+                <span class="meta-value">${escapeHtml(booking.timeWindow || "Time flexible")}</span>
+                <span class="meta-label">Status</span>
+                <span class="meta-value">${escapeHtml(statusMeta.label)}</span>
+              </div>
+            </section>
+
+            <section class="detail-section">
+              <h4>Customer</h4>
+              <div class="meta-grid">
+                <span class="meta-label">Name</span>
+                <span class="meta-value">${escapeHtml(booking.name || "Not set")}</span>
+                <span class="meta-label">Phone</span>
+                <span class="meta-value">${escapeHtml(formatPhone(booking.phone) || "Not set")}</span>
+                ${booking.contactMethod ? `
+                  <span class="meta-label">Contact</span>
+                  <span class="meta-value">${escapeHtml(booking.contactMethod)}</span>
+                ` : ""}
+                ${booking.email ? `
+                  <span class="meta-label">Email</span>
+                  <span class="meta-value">${escapeHtml(booking.email)}</span>
+                ` : ""}
+              </div>
+            </section>
+
+            <section class="detail-section">
+              <h4>Vehicle and service</h4>
+              <div class="meta-grid">
+                <span class="meta-label">Vehicle</span>
+                <span class="meta-value">${escapeHtml(getVehicleLabel(booking) || "Vehicle details missing")}</span>
+                <span class="meta-label">Service</span>
+                <span class="meta-value">${escapeHtml(booking.serviceType || "Not set")}</span>
+                ${booking.visitType ? `
+                  <span class="meta-label">Visit type</span>
+                  <span class="meta-value">${escapeHtml(booking.visitType)}</span>
+                ` : ""}
+                ${booking.urgency ? `
+                  <span class="meta-label">Urgency</span>
+                  <span class="meta-value">${escapeHtml(booking.urgency)}</span>
+                ` : ""}
+              </div>
+            </section>
+
+            <section class="detail-section">
+              <h4>Concern</h4>
+              <p class="concern-copy">${escapeHtml(getConcernDisplay(booking))}</p>
+            </section>
+
+            <div class="modal-actions calendar-booking-actions">
+              <button class="primary-button" type="button" data-action="open-calendar-booking-desk" data-booking-id="${escapeHtml(booking.id)}">
+                Open in booking desk
+              </button>
+              ${canManageBookings()
+                ? `
+                  <button class="muted-button" type="button" data-action="reschedule" data-booking-id="${escapeHtml(booking.id)}">
+                    Reschedule
+                  </button>
+                `
+                : ""}
+            </div>
+          </div>
+        </article>
+      </section>
+    `;
+  }
+
   function renderDetailPanel(booking) {
     if (!booking) {
       return `
@@ -2325,6 +2562,7 @@
       const manualForm = modalBackdrop.querySelector('[data-form="manual-booking"]');
       const rescheduleForm = modalBackdrop.querySelector('[data-form="reschedule-booking"]');
       const userForm = modalBackdrop.querySelector('[data-form="admin-user"]');
+      const calendarBookingDialog = modalBackdrop.querySelector('[data-calendar-booking-dialog]');
       if (manualForm) {
         state.manualDraft = readManualDraft(manualForm);
         state.showManualForm = false;
@@ -2336,6 +2574,10 @@
       if (userForm) {
         state.userEditor = readUserEditor(userForm);
         state.showUserForm = false;
+      }
+      if (calendarBookingDialog) {
+        state.showCalendarBookingDialog = false;
+        state.calendarDialogBookingId = "";
       }
       render();
       return;
@@ -2377,6 +2619,18 @@
         return;
       }
 
+      if (action === "toggle-password") {
+        event.preventDefault();
+        const passwordField = actionButton.closest(".password-field");
+        const input = passwordField?.querySelector(".password-input");
+        if (!(input instanceof HTMLInputElement)) return;
+        const nextIsVisible = input.type === "password";
+        input.type = nextIsVisible ? "text" : "password";
+        actionButton.textContent = nextIsVisible ? "Hide" : "Show";
+        actionButton.setAttribute("aria-label", nextIsVisible ? "Hide password" : "Show password");
+        return;
+      }
+
       if (action === "open-manual") {
         event.preventDefault();
         if (!canManageBookings()) {
@@ -2402,6 +2656,14 @@
         event.preventDefault();
         state.rescheduleDraft = readRescheduleDraft(document.querySelector('[data-form="reschedule-booking"]'));
         state.showRescheduleForm = false;
+        render();
+        return;
+      }
+
+      if (action === "close-calendar-booking") {
+        event.preventDefault();
+        state.showCalendarBookingDialog = false;
+        state.calendarDialogBookingId = "";
         render();
         return;
       }
@@ -2467,8 +2729,24 @@
           render();
           return;
         }
+        state.showCalendarBookingDialog = false;
+        state.calendarDialogBookingId = "";
         openRescheduleDialog(bookingId);
         render();
+        return;
+      }
+
+      if (action === "open-calendar-booking-desk") {
+        state.showCalendarBookingDialog = false;
+        state.calendarDialogBookingId = "";
+        const booking = state.bookings.find((entry) => entry.id === bookingId) || null;
+        const destination = getDeskDestinationForBooking(booking);
+        state.currentView = destination.view;
+        state.archivedFilter = destination.archivedFilter;
+        state.deskSearchQuery = "";
+        state.deskFilter = DESK_FILTERS.all;
+        setDetailMode(DETAIL_MODES.desk);
+        selectBooking(bookingId);
         return;
       }
 
@@ -2634,8 +2912,11 @@
     const calendarBookingButton = event.target.closest("[data-calendar-booking]");
     if (calendarBookingButton) {
       event.preventDefault();
-      setDetailMode(DETAIL_MODES.desk);
-      selectBooking(calendarBookingButton.dataset.calendarBooking || "");
+      const bookingId = calendarBookingButton.dataset.calendarBooking || "";
+      if (!bookingId) return;
+      state.calendarDialogBookingId = bookingId;
+      state.showCalendarBookingDialog = true;
+      render();
       return;
     }
 
@@ -2853,6 +3134,12 @@
         return;
       }
 
+      const existingUser = editor.id ? state.users.find((entry) => entry.id === editor.id) : null;
+      const accessChangeWarning = getAccessChangeWarning(existingUser, editor);
+      if (accessChangeWarning && !window.confirm(accessChangeWarning)) {
+        return;
+      }
+
       state.isSavingUser = true;
       state.errorMessage = "";
       render();
@@ -2888,10 +3175,7 @@
           } else {
             nextUsers.push(savedUser);
           }
-          nextUsers.sort((left, right) =>
-            String(left.displayName || left.username).localeCompare(String(right.displayName || right.username))
-          );
-          state.users = nextUsers;
+          state.users = sortAdminUsers(nextUsers);
 
           if (currentUser() && savedUser.id === currentUser().id) {
             if (savedUser.active === false) {

@@ -2,11 +2,6 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const BACKEND_ROOT = path.resolve(__dirname, "..", "..");
-
 const allowedServiceTypes = new Set([
   "Oil change / maintenance",
   "Brake inspection / repair",
@@ -240,7 +235,11 @@ function parseBoolean(value) {
 
 function getStoragePath() {
   const rawBookingsFile = process.env.BOOKINGS_FILE || "./data/bookings.jsonl";
-  return path.resolve(BACKEND_ROOT, rawBookingsFile);
+  if (path.isAbsolute(rawBookingsFile)) {
+    return rawBookingsFile;
+  }
+
+  return path.resolve(resolveBackendRoot(), rawBookingsFile);
 }
 
 function getBookingStorageSetting() {
@@ -316,6 +315,28 @@ function parseBookings(raw) {
       }
     })
     .filter(Boolean);
+}
+
+function resolveBackendRoot() {
+  const configuredRoot = clean(process.env.BACKEND_ROOT);
+  if (configuredRoot) {
+    return path.resolve(configuredRoot);
+  }
+
+  try {
+    if (import.meta?.url) {
+      return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+    }
+  } catch {
+    // Fall back to cwd-based guesses when a function bundler rewrites import.meta.
+  }
+
+  const currentWorkingDirectory = process.cwd();
+  if (path.basename(currentWorkingDirectory) === "backend") {
+    return currentWorkingDirectory;
+  }
+
+  return path.resolve(currentWorkingDirectory, "ChatGPT", "backend");
 }
 
 function isArchiveExpired(booking, now = Date.now()) {

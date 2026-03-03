@@ -44,6 +44,13 @@ const ROLE_CAPABILITIES = {
   },
 };
 
+const ROLE_SORT_ORDER = {
+  head: 0,
+  access_manager: 1,
+  manager: 2,
+  viewer: 3,
+};
+
 const sessions = new Map();
 
 export class AdminAuthError extends Error {
@@ -150,6 +157,18 @@ const getVisibleUsersForActor = (users, actorUser) =>
     return true;
   });
 
+const sortUsersByRoleAndName = (users) =>
+  [...users].sort((left, right) => {
+    const leftRole = normalizeRole(left?.role) || "viewer";
+    const rightRole = normalizeRole(right?.role) || "viewer";
+    const roleCompare = (ROLE_SORT_ORDER[leftRole] ?? 99) - (ROLE_SORT_ORDER[rightRole] ?? 99);
+    if (roleCompare !== 0) return roleCompare;
+
+    const leftName = String(left?.displayName || left?.username || "").toLowerCase();
+    const rightName = String(right?.displayName || right?.username || "").toLowerCase();
+    return leftName.localeCompare(rightName);
+  });
+
 const cleanupExpiredSessions = () => {
   const now = Date.now();
   for (const [token, session] of sessions.entries()) {
@@ -250,7 +269,15 @@ export const authenticateUser = async ({ username, password }) => {
   const store = await readStore();
   const user = store.users.find((entry) => entry.username === normalizedUsername);
 
-  if (!user || user.active === false || !(await verifyPassword(user, password))) {
+  if (!user) {
+    throw new AdminAuthError(401, "Invalid username or password.");
+  }
+
+  if (user.active === false) {
+    throw new AdminAuthError(403, "This account has been deactivated or locked. Contact a head admin or access manager.");
+  }
+
+  if (!(await verifyPassword(user, password))) {
     throw new AdminAuthError(401, "Invalid username or password.");
   }
 
@@ -305,9 +332,9 @@ export const revokeSession = (token) => {
 
 export const listAdminUsers = async (actorUser = null) => {
   const store = await readStore();
-  return getVisibleUsersForActor(store.users, actorUser)
+  return sortUsersByRoleAndName(getVisibleUsersForActor(store.users, actorUser))
     .map(sanitizeUser)
-    .sort((left, right) => String(left.displayName || left.username).localeCompare(String(right.displayName || right.username)));
+    ;
 };
 
 export const createAdminUser = async ({ username, displayName, password, role, active = true }, actorUser = null) => {
