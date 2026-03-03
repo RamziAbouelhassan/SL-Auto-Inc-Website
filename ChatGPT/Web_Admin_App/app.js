@@ -108,6 +108,7 @@
     sectionOpen: {
       pending: false,
       accepted: false,
+      staffAccess: false,
     },
   };
 
@@ -1330,6 +1331,7 @@
 
   function renderAdminAccessPanel() {
     if (!canManageUsers()) return "";
+    const isOpen = state.sectionOpen.staffAccess !== false;
 
     const groupedUsers = state.users.reduce((groups, user) => {
       const role = String(user.role || "viewer").trim().toLowerCase();
@@ -1390,15 +1392,31 @@
 
     return `
       <section class="panel team-panel">
-        <div class="panel-heading">
-          <div>
+        <button
+          class="section-toggle"
+          type="button"
+          data-section-toggle="staffAccess"
+          aria-expanded="${isOpen ? "true" : "false"}"
+        >
+          <span class="section-toggle-copy">
             <h2>Staff access</h2>
             <p>${escapeHtml(
               canManageHeadUsers()
                 ? "Create accounts, promote staff, and keep viewer logins read-only."
                 : "You can manage staff access for everyone except the head admin account."
             )}</p>
-          </div>
+          </span>
+          <span class="section-toggle-meta">
+            <span class="mini-count">${state.isLoadingUsers ? "..." : state.users.length}</span>
+            <span class="section-chevron" aria-hidden="true">${isOpen ? "▾" : "▸"}</span>
+          </span>
+        </button>
+
+        ${
+          isOpen
+            ? `
+        <div class="panel-heading">
+          <div></div>
           <div class="modal-actions">
             <span class="pill pill-amber">${state.isLoadingUsers ? "Loading..." : `${state.users.length} account${state.users.length === 1 ? "" : "s"}`}</span>
             <button class="primary-button" type="button" data-action="open-user-form">Add account</button>
@@ -1408,6 +1426,9 @@
         <div class="team-user-list">
           ${userCards}
         </div>
+        `
+            : ""
+        }
       </section>
     `;
   }

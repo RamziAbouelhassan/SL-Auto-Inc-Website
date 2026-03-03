@@ -1,6 +1,5 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 const allowedServiceTypes = new Set([
   "Oil change / maintenance",
@@ -321,14 +320,6 @@ function resolveBackendRoot() {
   const configuredRoot = clean(process.env.BACKEND_ROOT);
   if (configuredRoot) {
     return path.resolve(configuredRoot);
-  }
-
-  try {
-    if (import.meta?.url) {
-      return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-    }
-  } catch {
-    // Fall back to cwd-based guesses when a function bundler rewrites import.meta.
   }
 
   const currentWorkingDirectory = process.cwd();
