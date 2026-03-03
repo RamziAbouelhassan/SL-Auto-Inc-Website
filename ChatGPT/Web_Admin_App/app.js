@@ -1321,10 +1321,11 @@
     const statusMeta = getStatusMeta(booking);
     const selectedClass = state.selectedBookingId === booking.id ? "is-selected" : "";
     const subduedClass = isArchived(booking) || getResolvedStatus(booking) === "rejected" ? "is-subdued" : "";
+    const urgentClass = isUrgent(booking) ? "is-urgent" : "";
     const note = archiveNote(booking);
 
     return `
-      <article class="booking-card ${selectedClass} ${subduedClass}" data-booking-select="${booking.id}">
+      <article class="booking-card ${selectedClass} ${subduedClass} ${urgentClass}" data-booking-select="${booking.id}">
         <div class="booking-head">
           <div class="booking-meta">
             <h4>${escapeHtml(booking.name || "Unnamed booking")}</h4>
@@ -1472,12 +1473,14 @@
   }
 
   function renderCalendarDay(day, selectedDate) {
+    const hasUrgentBooking = day.bookings.some(isUrgent);
     const classes = [
       "calendar-day",
       day.isCurrentMonth ? "is-current-month" : "is-outside-month",
       day.isToday ? "is-today" : "",
       day.dateValue === selectedDate ? "is-selected" : "",
       day.bookings.length ? "has-bookings" : "",
+      hasUrgentBooking ? "is-urgent" : "",
     ]
       .filter(Boolean)
       .join(" ");
@@ -1486,14 +1489,14 @@
       <button class="${classes}" type="button" data-calendar-date="${day.dateValue}">
         <span class="calendar-day-top">
           <span class="calendar-day-number">${day.dayNumber}</span>
-          ${day.bookings.length ? `<span class="calendar-day-count">${day.bookings.length}</span>` : ""}
+          ${day.bookings.length ? `<span class="calendar-day-count ${hasUrgentBooking ? "is-urgent" : ""}">${day.bookings.length}</span>` : ""}
         </span>
         <span class="calendar-day-events">
           ${day.bookings
             .slice(0, 2)
             .map((booking) => {
               const status = getResolvedStatus(booking);
-              return `<span class="calendar-day-pill is-${status}">${escapeHtml(booking.name || booking.serviceType || "Booking")}</span>`;
+              return `<span class="calendar-day-pill is-${status} ${isUrgent(booking) ? "is-urgent" : ""}">${escapeHtml(booking.name || booking.serviceType || "Booking")}</span>`;
             })
             .join("")}
           ${day.bookings.length > 2 ? `<span class="calendar-day-more">+${day.bookings.length - 2} more</span>` : ""}
@@ -1506,7 +1509,7 @@
     const statusMeta = getStatusMeta(booking);
     const status = getResolvedStatus(booking);
     return `
-      <article class="calendar-agenda-item is-${status}">
+      <article class="calendar-agenda-item is-${status} ${isUrgent(booking) ? "is-urgent" : ""}">
         <button class="calendar-agenda-main" type="button" data-calendar-booking="${booking.id}">
           <div class="calendar-agenda-copy">
             <strong>${escapeHtml(booking.serviceType || "Booking")}</strong>

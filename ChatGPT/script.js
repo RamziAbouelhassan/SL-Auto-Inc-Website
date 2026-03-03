@@ -512,7 +512,6 @@ const renderPreferredDateCalendar = () => {
     day.setHours(12, 0, 0, 0);
 
     const value = formatDateInputValue(day);
-    const bookingCount = getBookingCountForDate(value);
     const button = document.createElement("button");
     button.type = "button";
     button.className = "booking-date-day";
@@ -547,12 +546,6 @@ const renderPreferredDateCalendar = () => {
     if (day.getDay() === CLOSED_BOOKING_WEEKDAY) {
       metaEl.textContent = "Closed";
       button.classList.add("has-meta");
-    } else if (bookingCount > 0) {
-      metaEl.textContent = bookingCount === 1 ? "1 booking" : `${bookingCount} bookings`;
-      button.classList.add("has-meta", "has-bookings");
-      if (bookingCount >= 4) {
-        button.classList.add("is-busy");
-      }
     }
 
     if (metaEl.textContent) {
@@ -584,7 +577,6 @@ const openPreferredDateCalendar = () => {
   );
   bookingCalendarState.isOpen = true;
   renderPreferredDateCalendar();
-  void loadBookingCalendarAvailability();
   preferredDateCalendarEl.hidden = false;
   preferredDateTriggerEl.classList.add("is-open");
   preferredDateTriggerEl.setAttribute("aria-expanded", "true");

@@ -693,6 +693,25 @@ button {
   box-shadow: 0 18px 38px rgba(43, 109, 246, 0.14);
 }
 
+.booking-card.is-urgent {
+  border-color: rgba(228, 115, 104, 0.26);
+  background:
+    linear-gradient(180deg, rgba(255, 241, 238, 0.92), rgba(255, 247, 245, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 10px 24px rgba(171, 60, 46, 0.08);
+}
+
+.booking-card.is-urgent:hover {
+  border-color: rgba(228, 115, 104, 0.38);
+  box-shadow: 0 16px 32px rgba(171, 60, 46, 0.14);
+}
+
+.booking-card.is-urgent.is-selected {
+  border-color: rgba(228, 115, 104, 0.52);
+  box-shadow: 0 18px 38px rgba(171, 60, 46, 0.18);
+}
+
 .booking-card.is-subdued {
   opacity: 0.78;
 }
@@ -1007,6 +1026,11 @@ button {
   box-shadow: 0 0 0 1px rgba(113, 192, 249, 0.16);
 }
 
+.calendar-day.is-urgent {
+  border-color: rgba(228, 115, 104, 0.24);
+  background: rgba(96, 34, 27, 0.18);
+}
+
 .calendar-day.is-today {
   border-color: rgba(255, 184, 89, 0.42);
 }
@@ -1038,6 +1062,11 @@ button {
   color: rgba(246, 241, 233, 0.9);
   font-size: 0.72rem;
   font-weight: 800;
+}
+
+.calendar-day-count.is-urgent {
+  background: rgba(228, 115, 104, 0.18);
+  color: #ffc4bd;
 }
 
 .calendar-day-events {
@@ -1072,6 +1101,11 @@ button {
 .calendar-day-pill.is-rejected {
   background: rgba(228, 115, 104, 0.14);
   color: #ffb2aa;
+}
+
+.calendar-day-pill.is-urgent {
+  background: rgba(228, 115, 104, 0.22);
+  color: #ffd2cb;
 }
 
 .calendar-day-more {
@@ -1116,6 +1150,12 @@ button {
 .calendar-agenda-item.is-rejected {
   border-color: rgba(228, 115, 104, 0.22);
   box-shadow: inset 0 0 0 1px rgba(228, 115, 104, 0.06);
+}
+
+.calendar-agenda-item.is-urgent {
+  border-color: rgba(228, 115, 104, 0.3);
+  background: rgba(118, 42, 35, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(228, 115, 104, 0.08);
 }
 
 .calendar-agenda-copy {
