@@ -766,9 +766,25 @@ if (serviceTypeEl && servicePills.length) {
 }
 
 if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl) {
+  const bookingPhoneInput = bookingForm.querySelector('input[name="phone"]');
   const bookingSubmitBtn = bookingForm.querySelector('button[type="submit"]');
   let currentBookingId = "";
   let isEditingBooking = false;
+
+  const formatPhoneInputValue = (value) => {
+    const digits = String(value || "").replace(/\D/g, "").slice(0, 10);
+    if (digits.length <= 3) return digits ? `(${digits}` : "";
+    if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  };
+
+  if (bookingPhoneInput) {
+    bookingPhoneInput.addEventListener("input", () => {
+      bookingPhoneInput.value = formatPhoneInputValue(bookingPhoneInput.value);
+    });
+
+    bookingPhoneInput.value = formatPhoneInputValue(bookingPhoneInput.value);
+  }
 
   const formatDateForDisplay = (value) => {
     if (!value) return "Not specified";

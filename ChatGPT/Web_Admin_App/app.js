@@ -215,6 +215,7 @@
       role: "viewer",
       active: true,
       isNew: true,
+      canToggleActive: true,
     };
   }
 
@@ -256,6 +257,16 @@
 
   function canManageHeadUsers() {
     return Boolean(currentUser()?.permissions?.manageHeadUsers);
+  }
+
+  function isAccessManagerUser(user) {
+    return String(user?.role || "").trim().toLowerCase() === "access_manager";
+  }
+
+  function canEditAdminUser(user) {
+    if (!canManageUsers() || !user) return false;
+    if (canManageHeadUsers()) return true;
+    return !(isAccessManagerUser(currentUser()) && isAccessManagerUser(user) && currentUser()?.id !== user.id);
   }
 
   function getAccessLevelRank(role) {

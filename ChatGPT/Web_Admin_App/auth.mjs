@@ -148,6 +148,16 @@ const assertCanManageRole = (actorUser, role) => {
   }
 };
 
+const isAccessManager = (user) => normalizeRole(user?.role) === "access_manager";
+
+const assertCanManageTargetUser = (actorUser, targetUser) => {
+  if (!actorUser || !targetUser) return;
+
+  if (isAccessManager(actorUser) && isAccessManager(targetUser) && actorUser.id !== targetUser.id) {
+    throw new AdminAuthError(403, "Access managers cannot edit other access manager accounts.");
+  }
+};
+
 const getVisibleUsersForActor = (users, actorUser) =>
   users.filter((user) => {
     if (!actorUser) return true;
@@ -402,8 +412,13 @@ export const updateAdminUser = async (userId, updates = {}) => {
   }
 
   const actorUser = updates.actorUser || null;
+  assertCanManageTargetUser(actorUser, user);
   assertCanManageRole(actorUser, user.role);
   assertCanManageRole(actorUser, nextRole);
+
+  if (actorUser?.id === userId && nextActive === false) {
+    throw new AdminAuthError(400, "You cannot deactivate your own account.");
+  }
 
   if (
     store.users.some((entry) => entry.id !== userId && entry.username === nextUsername)
