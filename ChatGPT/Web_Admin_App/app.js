@@ -906,14 +906,12 @@
       nextBookings.unshift(booking);
     }
 
-    nextBookings.sort((left, right) => String(right.createdAt || "").localeCompare(String(left.createdAt || "")));
+    nextBookings.sort(compareBookings);
     state.bookings = nextBookings;
   }
 
   function sortBookings(bookings) {
-    return Array.isArray(bookings)
-      ? [...bookings].sort((left, right) => String(right.createdAt || "").localeCompare(String(left.createdAt || "")))
-      : [];
+    return Array.isArray(bookings) ? [...bookings].sort(compareBookings) : [];
   }
 
   function getResolvedStatus(booking) {
@@ -932,6 +930,12 @@
   function isUrgent(booking) {
     const urgency = String(booking.urgency || "").toLowerCase();
     return urgency.includes("urgent") || urgency.includes("drivability");
+  }
+
+  function compareBookings(left, right) {
+    const urgentCompare = Number(isUrgent(right)) - Number(isUrgent(left));
+    if (urgentCompare !== 0) return urgentCompare;
+    return String(right.createdAt || "").localeCompare(String(left.createdAt || ""));
   }
 
   function getArchivedDate(booking) {
