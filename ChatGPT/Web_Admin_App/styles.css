@@ -1037,6 +1037,13 @@ button {
   display: grid;
 }
 
+.desk-search-help {
+  margin-top: 0.45rem;
+  color: rgba(79, 89, 107, 0.9);
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
 .desk-filter-group {
   display: flex;
   flex-wrap: wrap;

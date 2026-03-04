@@ -3,6 +3,7 @@
 
   const STORAGE_KEY = "sl_auto_admin.web.apiBaseURL";
   const AUTH_TOKEN_STORAGE_KEY = "sl_auto_admin.web.authToken";
+  const SECTION_STATE_STORAGE_KEY = "sl_auto_admin.web.sectionState";
   const ARCHIVE_RETENTION_DAYS = 30;
   const API_SERVICE_NAME = "sl-auto-booking-api";
   const DEFAULT_API_PORT = "4310";
@@ -105,11 +106,7 @@
     showRescheduleForm: false,
     showCalendarBookingDialog: false,
     calendarDialogBookingId: "",
-    sectionOpen: {
-      pending: false,
-      accepted: false,
-      staffAccess: false,
-    },
+    sectionOpen: loadStoredSectionState(),
   };
 
   const dateTimeFormatter = new Intl.DateTimeFormat("en-CA", {
@@ -225,6 +222,35 @@
       return String(window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || "").trim();
     } catch (_error) {
       return "";
+    }
+  }
+
+  function loadStoredSectionState() {
+    const defaults = {
+      pending: false,
+      accepted: false,
+      staffAccess: false,
+    };
+
+    try {
+      const raw = window.localStorage.getItem(SECTION_STATE_STORAGE_KEY);
+      if (!raw) return defaults;
+      const parsed = JSON.parse(raw);
+      return {
+        pending: parsed?.pending !== false,
+        accepted: parsed?.accepted !== false,
+        staffAccess: parsed?.staffAccess !== false,
+      };
+    } catch (_error) {
+      return defaults;
+    }
+  }
+
+  function persistSectionState() {
+    try {
+      window.localStorage.setItem(SECTION_STATE_STORAGE_KEY, JSON.stringify(state.sectionOpen));
+    } catch (_error) {
+      // Ignore storage errors.
     }
   }
 
@@ -1915,9 +1941,12 @@
               type="text"
               data-desk-search="true"
               value="${escapeHtml(state.deskSearchQuery)}"
-              placeholder="Search name, phone, vehicle, or service"
+              placeholder="Search bookings"
               autocomplete="off"
             />
+            <span class="desk-search-help">
+              Searches name, phone, email, vehicle, service, concern, and preferred date.
+            </span>
           </label>
 
           <div class="desk-filter-group" role="tablist" aria-label="Desk filters">
@@ -2639,6 +2668,7 @@
       const sectionKey = sectionToggle.dataset.sectionToggle;
       if (!sectionKey) return;
       state.sectionOpen[sectionKey] = !(state.sectionOpen[sectionKey] !== false);
+      persistSectionState();
       render();
       return;
     }
