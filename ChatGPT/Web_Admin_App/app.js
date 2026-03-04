@@ -1565,7 +1565,7 @@
       : "No successful sync yet";
     const oldestPending = getOldestPendingBooking(counts.pending);
     const latestAccepted = getLatestAcceptedBooking(counts.accepted);
-    const nextScheduled = getNextScheduledBooking([...counts.pending, ...counts.accepted]);
+    const nextScheduled = getNextScheduledBooking(counts.accepted);
     const urgentBookingCount = [...counts.pending, ...counts.accepted].filter(isUrgent).length;
     const todaysBookingCount = [...counts.pending, ...counts.accepted].filter(
       (booking) => getBookingDateValue(booking) === getTodayDateValue()
