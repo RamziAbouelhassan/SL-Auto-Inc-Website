@@ -427,6 +427,7 @@
     render();
 
     try {
+      const normalizedUsername = normalizeUsername(username);
       const resolvedBaseUrl = await resolveWorkingBaseUrl(state.apiBaseUrl);
       state.apiBaseUrl = resolvedBaseUrl;
       window.localStorage.setItem(STORAGE_KEY, resolvedBaseUrl);
@@ -436,7 +437,7 @@
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username: normalizedUsername, password }),
       });
       const payload = await parseResponse(response, "Could not sign in.");
 
@@ -687,6 +688,10 @@
 
   function normalizeBaseUrl(url) {
     return String(url || "").trim().replace(/\/+$/, "");
+  }
+
+  function normalizeUsername(value) {
+    return String(value || "").trim().toLowerCase();
   }
 
   function setHash(view, bookingId) {
@@ -1276,7 +1281,16 @@
 
           <label>
             <span class="field-label">Username</span>
-            <input class="text-input" type="text" name="username" autocomplete="username" required />
+            <input
+              class="text-input"
+              type="text"
+              name="username"
+              autocomplete="username"
+              autocapitalize="none"
+              autocorrect="off"
+              spellcheck="false"
+              required
+            />
           </label>
 
           <label>
