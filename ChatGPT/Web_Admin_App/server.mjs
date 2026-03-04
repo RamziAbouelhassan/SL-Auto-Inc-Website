@@ -494,6 +494,9 @@ server.listen(PORT, HOST, () => {
     console.log(`Admin user storage: Supabase (${adminUserStorageDetails.table})`);
   } else {
     console.log(`Admin user storage file: ${adminUserStorageDetails.usersFile}`);
+    if ((process.env.RENDER || process.env.RENDER_SERVICE_ID) && String(adminUserStorageDetails.usersFile).startsWith("/var/data/")) {
+      console.log("Render admin user storage expects a persistent disk mounted at /var/data.");
+    }
   }
   console.log("API health path: /health");
 });

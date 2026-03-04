@@ -46,10 +46,12 @@ All booking reads and admin mutations now require login. The public `POST /api/b
   - `ADMIN_BOOTSTRAP_NAME`
   - `ADMIN_USER_STORAGE` (`supabase` or `file`)
   - `ADMIN_USER_TABLE` (defaults to `admin_users`)
+  - `ADMIN_USERS_FILE` (defaults to `data/admin-users.json`, or `/var/data/admin-users.json` on Render)
 - If you do not set them, the app generates a temporary head password and prints it once during startup.
 - Admin passwords must be at least 6 characters long.
 - When Supabase is configured, staff accounts are stored in `public.admin_users` and survive redeploys.
 - Without Supabase admin storage, staff accounts fall back to `data/admin-users.json`.
+- On Render, file-based admin storage defaults to `/var/data/admin-users.json`; mount a persistent disk there or point `ADMIN_USERS_FILE` at your mounted disk path.
 - If Supabase admin storage is empty and the local file already has users, the app migrates those users into Supabase on startup.
 
 ## Supported actions

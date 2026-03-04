@@ -11,6 +11,7 @@ const __dirname = path.dirname(__filename);
 
 const USERS_DIR = path.join(__dirname, "data");
 const USERS_FILE = path.join(USERS_DIR, "admin-users.json");
+const RENDER_USERS_FILE = "/var/data/admin-users.json";
 const SESSION_DURATION_MS = 12 * 60 * 60 * 1000;
 
 const ROLE_CAPABILITIES = {
@@ -52,6 +53,8 @@ const ROLE_SORT_ORDER = {
 };
 
 const sessions = new Map();
+let adminStorageModeOverride = "";
+let adminStorageFallbackLogged = false;
 
 export class AdminAuthError extends Error {
   constructor(statusCode, message, details = []) {
@@ -82,13 +85,31 @@ const cleanNullable = (value) => {
 
 const getAdminUserStorageSetting = () => clean(process.env.ADMIN_USER_STORAGE).toLowerCase();
 
+const isRenderEnvironment = () =>
+  clean(process.env.RENDER).toLowerCase() === "true" || Boolean(clean(process.env.RENDER_SERVICE_ID));
+
+const getAdminUsersFilePath = () => {
+  const configuredPath = clean(process.env.ADMIN_USERS_FILE);
+  if (configuredPath) {
+    return path.isAbsolute(configuredPath) ? configuredPath : path.resolve(__dirname, configuredPath);
+  }
+
+  return isRenderEnvironment() ? RENDER_USERS_FILE : USERS_FILE;
+};
+
 const getSupabaseConfig = () => ({
   url: clean(process.env.SUPABASE_URL).replace(/\/+$/, ""),
   serviceRoleKey: clean(process.env.SUPABASE_SERVICE_ROLE_KEY),
   table: clean(process.env.ADMIN_USER_TABLE || process.env.SUPABASE_ADMIN_USERS_TABLE || "admin_users"),
 });
 
+const isAdminStorageModeExplicit = () => Boolean(getAdminUserStorageSetting());
+
 const resolveAdminStorageMode = () => {
+  if (adminStorageModeOverride) {
+    return adminStorageModeOverride;
+  }
+
   const configuredMode = getAdminUserStorageSetting();
   const supabaseConfig = getSupabaseConfig();
 
@@ -112,6 +133,49 @@ const resolveAdminStorageMode = () => {
   return "file";
 };
 
+const logAdminStorageFallback = (error) => {
+  if (adminStorageFallbackLogged) return;
+  adminStorageFallbackLogged = true;
+  console.warn(
+    `Admin user storage fell back to file mode at ${getAdminUsersFilePath()}. ${error?.message || "Supabase admin storage is unavailable."}`
+  );
+  if (isRenderEnvironment()) {
+    console.warn("On Render, attach a persistent disk at /var/data or configure ADMIN_USERS_FILE to a mounted disk path.");
+  }
+};
+
+const shouldFallbackToFileStorage = (error) => {
+  if (isAdminStorageModeExplicit()) return false;
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    message.includes("admin_users") ||
+    message.includes("does not exist") ||
+    message.includes("42p01") ||
+    message.includes("could not find the table") ||
+    message.includes("relation") ||
+    message.includes("permission denied")
+  );
+};
+
+const withAdminStoreFallback = async (operation) => {
+  const mode = resolveAdminStorageMode();
+  if (mode === "file") {
+    return operation("file");
+  }
+
+  try {
+    return await operation("supabase");
+  } catch (error) {
+    if (!shouldFallbackToFileStorage(error)) {
+      throw error;
+    }
+
+    adminStorageModeOverride = "file";
+    logAdminStorageFallback(error);
+    return operation("file");
+  }
+};
+
 const ensureSupabaseConfigured = () => {
   const supabaseConfig = getSupabaseConfig();
   if (!supabaseConfig.url || !supabaseConfig.serviceRoleKey) {
@@ -128,15 +192,17 @@ const buildStore = (users = []) => ({
 });
 
 const readFileStore = async () => {
-  await fs.mkdir(USERS_DIR, { recursive: true });
-  const fileContents = await fs.readFile(USERS_FILE, "utf8");
+  const usersFile = getAdminUsersFilePath();
+  await fs.mkdir(path.dirname(usersFile), { recursive: true });
+  const fileContents = await fs.readFile(usersFile, "utf8");
   const parsed = JSON.parse(fileContents);
   return buildStore(parsed?.users);
 };
 
 const writeFileStore = async (store) => {
-  await fs.mkdir(USERS_DIR, { recursive: true });
-  await fs.writeFile(USERS_FILE, `${JSON.stringify(store, null, 2)}\n`, "utf8");
+  const usersFile = getAdminUsersFilePath();
+  await fs.mkdir(path.dirname(usersFile), { recursive: true });
+  await fs.writeFile(usersFile, `${JSON.stringify(store, null, 2)}\n`, "utf8");
 };
 
 const mapSupabaseRowToUser = (row) => ({
@@ -234,11 +300,11 @@ const writeSupabaseStore = async (store) => {
 };
 
 const readStore = async () => {
-  return resolveAdminStorageMode() === "supabase" ? readSupabaseStore() : readFileStore();
+  return withAdminStoreFallback((mode) => (mode === "supabase" ? readSupabaseStore() : readFileStore()));
 };
 
 const writeStore = async (store) => {
-  return resolveAdminStorageMode() === "supabase" ? writeSupabaseStore(store) : writeFileStore(store);
+  return withAdminStoreFallback((mode) => (mode === "supabase" ? writeSupabaseStore(store) : writeFileStore(store)));
 };
 
 const createPasswordRecord = async (password) => {
@@ -356,7 +422,19 @@ const maybeMigrateFileUsersToSupabase = async ({ logger = console } = {}) => {
     return false;
   }
 
-  const store = await readSupabaseStore();
+  let store;
+  try {
+    store = await readSupabaseStore();
+  } catch (error) {
+    if (!shouldFallbackToFileStorage(error)) {
+      throw error;
+    }
+
+    adminStorageModeOverride = "file";
+    logAdminStorageFallback(error);
+    return false;
+  }
+
   if (store.users.length) {
     return false;
   }
@@ -444,7 +522,7 @@ export const getAdminUserStorageDetails = () => {
   const mode = resolveAdminStorageMode();
   return {
     mode,
-    usersFile: USERS_FILE,
+    usersFile: getAdminUsersFilePath(),
     table: supabaseConfig.table,
     usingSupabase: mode === "supabase",
   };
