@@ -9,6 +9,7 @@ import {
   authenticateUser,
   createAdminUser,
   ensureAdminUserStore,
+  getAdminUserStorageDetails,
   getSessionTokenFromRequest,
   getSessionUser,
   listAdminUsers,
@@ -483,10 +484,16 @@ server.listen(PORT, HOST, () => {
     console.log(`- ${url}`);
   });
   const storageDetails = getStorageDetails();
+  const adminUserStorageDetails = getAdminUserStorageDetails();
   if (storageDetails.usingSupabase) {
     console.log("Booking storage: Supabase");
   } else {
     console.log(`Booking storage file: ${storageDetails.bookingsFile}`);
+  }
+  if (adminUserStorageDetails.usingSupabase) {
+    console.log(`Admin user storage: Supabase (${adminUserStorageDetails.table})`);
+  } else {
+    console.log(`Admin user storage file: ${adminUserStorageDetails.usersFile}`);
   }
   console.log("API health path: /health");
 });

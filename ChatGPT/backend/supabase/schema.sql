@@ -22,3 +22,19 @@ create table if not exists public.bookings (
 
 create index if not exists bookings_created_at_idx on public.bookings (created_at desc);
 create index if not exists bookings_archived_at_idx on public.bookings (archived_at);
+
+create table if not exists public.admin_users (
+  id text primary key,
+  username text not null unique,
+  display_name text not null,
+  role text not null check (role in ('head', 'access_manager', 'manager', 'viewer')),
+  active boolean not null default true,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz,
+  last_login_at timestamptz,
+  password_salt text not null,
+  password_hash text not null
+);
+
+create index if not exists admin_users_role_idx on public.admin_users (role);
+create index if not exists admin_users_active_idx on public.admin_users (active);

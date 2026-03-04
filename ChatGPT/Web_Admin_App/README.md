@@ -21,10 +21,11 @@ It also includes a small local server so the web UI and booking API can run toge
    - `SUPABASE_URL=...`
    - `SUPABASE_SERVICE_ROLE_KEY=...`
    - `SUPABASE_TABLE=bookings`
-4. Run `npm start`.
-5. On the first run, the server bootstraps a head admin account and prints the username/password once.
-6. Open the printed URL, usually `http://localhost:4310`.
-7. On iPhone, use the LAN URL printed by the server, for example `http://192.168.1.231:4310`.
+4. Run the SQL in `ChatGPT/backend/supabase/schema.sql` in Supabase so both `bookings` and `admin_users` exist.
+5. Run `npm start`.
+6. On the first run, the server bootstraps a head admin account and prints the username/password once.
+7. Open the printed URL, usually `http://localhost:4310`.
+8. On iPhone, use the LAN URL printed by the server, for example `http://192.168.1.231:4310`.
 
 At startup the server now prints whether bookings are being loaded from `Supabase` or from the local demo file.
 
@@ -43,9 +44,13 @@ All booking reads and admin mutations now require login. The public `POST /api/b
   - `ADMIN_BOOTSTRAP_USERNAME`
   - `ADMIN_BOOTSTRAP_PASSWORD`
   - `ADMIN_BOOTSTRAP_NAME`
+  - `ADMIN_USER_STORAGE` (`supabase` or `file`)
+  - `ADMIN_USER_TABLE` (defaults to `admin_users`)
 - If you do not set them, the app generates a temporary head password and prints it once during startup.
 - Admin passwords must be at least 6 characters long.
-- Staff accounts are stored in `data/admin-users.json`.
+- When Supabase is configured, staff accounts are stored in `public.admin_users` and survive redeploys.
+- Without Supabase admin storage, staff accounts fall back to `data/admin-users.json`.
+- If Supabase admin storage is empty and the local file already has users, the app migrates those users into Supabase on startup.
 
 ## Supported actions
 

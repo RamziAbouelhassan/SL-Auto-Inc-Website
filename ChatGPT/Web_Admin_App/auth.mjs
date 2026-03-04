@@ -73,20 +73,172 @@ const generateId = (prefix) => `${prefix}_${Date.now()}_${randomBytes(4).toStrin
 
 const generateBootstrapPassword = () => randomBytes(9).toString("base64url");
 
-const readStore = async () => {
+const clean = (value) => String(value || "").trim();
+
+const cleanNullable = (value) => {
+  const cleaned = clean(value);
+  return cleaned || null;
+};
+
+const getAdminUserStorageSetting = () => clean(process.env.ADMIN_USER_STORAGE).toLowerCase();
+
+const getSupabaseConfig = () => ({
+  url: clean(process.env.SUPABASE_URL).replace(/\/+$/, ""),
+  serviceRoleKey: clean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+  table: clean(process.env.ADMIN_USER_TABLE || process.env.SUPABASE_ADMIN_USERS_TABLE || "admin_users"),
+});
+
+const resolveAdminStorageMode = () => {
+  const configuredMode = getAdminUserStorageSetting();
+  const supabaseConfig = getSupabaseConfig();
+
+  if (configuredMode && configuredMode !== "file" && configuredMode !== "supabase") {
+    throw new AdminAuthError(500, `Unsupported ADMIN_USER_STORAGE value: ${configuredMode}`);
+  }
+
+  if (configuredMode === "supabase") {
+    ensureSupabaseConfigured();
+    return "supabase";
+  }
+
+  if (configuredMode === "file") {
+    return "file";
+  }
+
+  if (supabaseConfig.url && supabaseConfig.serviceRoleKey) {
+    return "supabase";
+  }
+
+  return "file";
+};
+
+const ensureSupabaseConfigured = () => {
+  const supabaseConfig = getSupabaseConfig();
+  if (!supabaseConfig.url || !supabaseConfig.serviceRoleKey) {
+    throw new AdminAuthError(
+      500,
+      "Supabase admin storage is selected, but SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing."
+    );
+  }
+};
+
+const buildStore = (users = []) => ({
+  version: 1,
+  users: Array.isArray(users) ? users : [],
+});
+
+const readFileStore = async () => {
   await fs.mkdir(USERS_DIR, { recursive: true });
   const fileContents = await fs.readFile(USERS_FILE, "utf8");
   const parsed = JSON.parse(fileContents);
-  const users = Array.isArray(parsed?.users) ? parsed.users : [];
-  return {
-    version: 1,
-    users,
+  return buildStore(parsed?.users);
+};
+
+const writeFileStore = async (store) => {
+  await fs.mkdir(USERS_DIR, { recursive: true });
+  await fs.writeFile(USERS_FILE, `${JSON.stringify(store, null, 2)}\n`, "utf8");
+};
+
+const mapSupabaseRowToUser = (row) => ({
+  id: clean(row.id),
+  username: normalizeUsername(row.username),
+  displayName: clean(row.display_name || row.displayName || row.username),
+  role: normalizeRole(row.role) || "viewer",
+  active: row.active !== false,
+  createdAt: clean(row.created_at || row.createdAt),
+  updatedAt: clean(row.updated_at || row.updatedAt),
+  lastLoginAt: clean(row.last_login_at || row.lastLoginAt),
+  passwordSalt: clean(row.password_salt || row.passwordSalt),
+  passwordHash: clean(row.password_hash || row.passwordHash),
+});
+
+const mapUserToSupabaseRow = (user) => ({
+  id: user.id,
+  username: normalizeUsername(user.username),
+  display_name: clean(user.displayName || user.username),
+  role: normalizeRole(user.role) || "viewer",
+  active: user.active !== false,
+  created_at: clean(user.createdAt),
+  updated_at: cleanNullable(user.updatedAt),
+  last_login_at: cleanNullable(user.lastLoginAt),
+  password_salt: clean(user.passwordSalt),
+  password_hash: clean(user.passwordHash),
+});
+
+const supabaseAdminRequest = async (query, { method = "GET", body, prefer } = {}) => {
+  ensureSupabaseConfigured();
+  const supabaseConfig = getSupabaseConfig();
+  const headers = {
+    apikey: supabaseConfig.serviceRoleKey,
+    Authorization: `Bearer ${supabaseConfig.serviceRoleKey}`,
   };
+
+  if (body !== undefined) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  if (prefer) {
+    headers.Prefer = prefer;
+  }
+
+  const endpoint = `${supabaseConfig.url}/rest/v1/${query}`;
+  let response;
+
+  try {
+    response = await fetch(endpoint, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch (error) {
+    throw new AdminAuthError(500, `Could not reach Supabase. ${error?.message || "Network request failed."}`);
+  }
+
+  const rawText = await response.text();
+  const payload = rawText ? tryParseJson(rawText) : null;
+
+  if (!response.ok) {
+    const message =
+      (payload && (payload.message || payload.error_description || payload.error)) ||
+      rawText ||
+      "Supabase request failed.";
+    throw new AdminAuthError(500, message);
+  }
+
+  return payload;
+};
+
+const readSupabaseStore = async () => {
+  const supabaseConfig = getSupabaseConfig();
+  const rows = await supabaseAdminRequest(
+    `${encodeURIComponent(supabaseConfig.table)}?select=*&order=created_at.asc`
+  );
+  const users = Array.isArray(rows) ? rows.map(mapSupabaseRowToUser) : [];
+  return buildStore(users);
+};
+
+const writeSupabaseStore = async (store) => {
+  const users = Array.isArray(store?.users) ? store.users : [];
+  if (users.length === 0) {
+    return buildStore([]);
+  }
+
+  const supabaseConfig = getSupabaseConfig();
+  const rows = await supabaseAdminRequest(encodeURIComponent(supabaseConfig.table), {
+    method: "POST",
+    body: users.map(mapUserToSupabaseRow),
+    prefer: "resolution=merge-duplicates,return=representation",
+  });
+
+  return buildStore(Array.isArray(rows) ? rows.map(mapSupabaseRowToUser) : users);
+};
+
+const readStore = async () => {
+  return resolveAdminStorageMode() === "supabase" ? readSupabaseStore() : readFileStore();
 };
 
 const writeStore = async (store) => {
-  await fs.mkdir(USERS_DIR, { recursive: true });
-  await fs.writeFile(USERS_FILE, `${JSON.stringify(store, null, 2)}\n`, "utf8");
+  return resolveAdminStorageMode() === "supabase" ? writeSupabaseStore(store) : writeFileStore(store);
 };
 
 const createPasswordRecord = async (password) => {
@@ -188,6 +340,37 @@ const cleanupExpiredSessions = () => {
   }
 };
 
+const tryReadLegacyFileStore = async () => {
+  try {
+    return await readFileStore();
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return buildStore([]);
+    }
+    throw error;
+  }
+};
+
+const maybeMigrateFileUsersToSupabase = async ({ logger = console } = {}) => {
+  if (resolveAdminStorageMode() !== "supabase") {
+    return false;
+  }
+
+  const store = await readSupabaseStore();
+  if (store.users.length) {
+    return false;
+  }
+
+  const legacyStore = await tryReadLegacyFileStore();
+  if (!legacyStore.users.length) {
+    return false;
+  }
+
+  await writeSupabaseStore(legacyStore);
+  logger.log(`Migrated ${legacyStore.users.length} admin user(s) from file storage to Supabase.`);
+  return true;
+};
+
 const createBootstrapHead = async ({ logger, existingUsers = [] }) => {
   const requestedUsername = normalizeUsername(process.env.ADMIN_BOOTSTRAP_USERNAME) || "head";
   let username = requestedUsername;
@@ -235,6 +418,14 @@ const createBootstrapHead = async ({ logger, existingUsers = [] }) => {
   };
 };
 
+function tryParseJson(value) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
 export const ADMIN_ROLES = Object.keys(ROLE_CAPABILITIES);
 
 export const roleCapabilitiesFor = (role) => {
@@ -248,6 +439,17 @@ export const roleCapabilitiesFor = (role) => {
   };
 };
 
+export const getAdminUserStorageDetails = () => {
+  const supabaseConfig = getSupabaseConfig();
+  const mode = resolveAdminStorageMode();
+  return {
+    mode,
+    usersFile: USERS_FILE,
+    table: supabaseConfig.table,
+    usingSupabase: mode === "supabase",
+  };
+};
+
 export const getSessionTokenFromRequest = (req) => {
   const headerValue = String(req?.headers?.authorization || "");
   const match = headerValue.match(/^Bearer\s+(.+)$/i);
@@ -255,6 +457,10 @@ export const getSessionTokenFromRequest = (req) => {
 };
 
 export const ensureAdminUserStore = async ({ logger = console } = {}) => {
+  if (resolveAdminStorageMode() === "supabase") {
+    await maybeMigrateFileUsersToSupabase({ logger });
+  }
+
   try {
     const store = await readStore();
     if (store.users.length === 0 || getActiveHeadCount(store.users) === 0) {
@@ -342,9 +548,7 @@ export const revokeSession = (token) => {
 
 export const listAdminUsers = async (actorUser = null) => {
   const store = await readStore();
-  return sortUsersByRoleAndName(getVisibleUsersForActor(store.users, actorUser))
-    .map(sanitizeUser)
-    ;
+  return sortUsersByRoleAndName(getVisibleUsersForActor(store.users, actorUser)).map(sanitizeUser);
 };
 
 export const createAdminUser = async ({ username, displayName, password, role, active = true }, actorUser = null) => {
@@ -360,7 +564,6 @@ export const createAdminUser = async ({ username, displayName, password, role, a
   }
 
   assertCanManageRole(actorUser, normalizedRole);
-
   assertValidPassword(password);
 
   const store = await readStore();
@@ -420,9 +623,7 @@ export const updateAdminUser = async (userId, updates = {}) => {
     throw new AdminAuthError(400, "You cannot deactivate your own account.");
   }
 
-  if (
-    store.users.some((entry) => entry.id !== userId && entry.username === nextUsername)
-  ) {
+  if (store.users.some((entry) => entry.id !== userId && entry.username === nextUsername)) {
     throw new AdminAuthError(409, "That username is already in use.");
   }
 
