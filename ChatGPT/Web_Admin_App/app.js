@@ -266,6 +266,11 @@
     }
   }
 
+  function closeStaffAccessSection() {
+    state.sectionOpen.staffAccess = false;
+    persistSectionState();
+  }
+
   function currentUser() {
     return state.currentUser;
   }
@@ -473,6 +478,7 @@
       state.authChecked = true;
       state.errorMessage = "";
       state.manualSuccessMessage = "";
+      closeStaffAccessSection();
 
       await loadBookings();
       if (canManageUsers()) {
