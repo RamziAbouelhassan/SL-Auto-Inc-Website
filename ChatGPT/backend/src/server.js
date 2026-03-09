@@ -7,13 +7,8 @@ import { fileURLToPath } from "node:url";
 import {
   BookingError,
   createBooking,
-  createManualBooking,
-  deleteBooking,
   getStorageDetails,
   listBookings,
-  updateBooking,
-  updateBookingArchive,
-  updateBookingStatus,
 } from "./lib/booking-service.mjs";
 
 dotenv.config();
@@ -56,6 +51,22 @@ const sendJsonError = (res, error, fallbackMessage) => {
   return res.status(500).json({ ok: false, error: fallbackMessage });
 };
 
+const getBookingAvailability = (bookings) => {
+  const countsByDate = new Map();
+
+  bookings.forEach((booking) => {
+    const dateValue = String(booking?.preferredDate || "").trim();
+    const status = String(booking?.status || "").trim().toLowerCase();
+
+    if (!dateValue || booking?.archivedAt || status === "rejected") return;
+    countsByDate.set(dateValue, (countsByDate.get(dateValue) || 0) + 1);
+  });
+
+  return Array.from(countsByDate.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([date, count]) => ({ date, count }));
+};
+
 app.use(
   cors({
     origin(origin, callback) {
@@ -75,63 +86,14 @@ app.get("/health", (_req, res) => {
   });
 });
 
-app.get("/api/bookings", async (_req, res) => {
+app.get("/api/booking-availability", async (_req, res) => {
   try {
-    return res.json({ ok: true, bookings: await listBookings() });
-  } catch (error) {
-    return sendJsonError(res, error, "Server error while loading bookings.");
-  }
-});
-
-app.patch("/api/bookings/:id/status", async (req, res) => {
-  try {
-    const updatedBooking = await updateBookingStatus(req.params.id, req.body.status);
     return res.json({
       ok: true,
-      booking: updatedBooking,
-      message: "Booking status updated.",
+      availability: getBookingAvailability(await listBookings()),
     });
   } catch (error) {
-    return sendJsonError(res, error, "Server error while updating booking status.");
-  }
-});
-
-app.patch("/api/bookings/:id/archive", async (req, res) => {
-  try {
-    const updatedBooking = await updateBookingArchive(req.params.id, req.body.archived);
-    return res.json({
-      ok: true,
-      booking: updatedBooking,
-      message: updatedBooking.archivedAt ? "Booking archived." : "Booking restored.",
-    });
-  } catch (error) {
-    return sendJsonError(res, error, "Server error while updating booking archive state.");
-  }
-});
-
-app.patch("/api/bookings/:id", async (req, res) => {
-  try {
-    const updatedBooking = await updateBooking(req.params.id, req.body || {});
-    return res.json({
-      ok: true,
-      booking: updatedBooking,
-      message: "Booking request updated.",
-    });
-  } catch (error) {
-    return sendJsonError(res, error, "Server error while updating booking request.");
-  }
-});
-
-app.delete("/api/bookings/:id", async (req, res) => {
-  try {
-    const { deletedId } = await deleteBooking(req.params.id);
-    return res.json({
-      ok: true,
-      deletedId,
-      message: "Booking permanently deleted.",
-    });
-  } catch (error) {
-    return sendJsonError(res, error, "Server error while deleting booking.");
+    return sendJsonError(res, error, "Server error while loading booking availability.");
   }
 });
 
@@ -148,17 +110,12 @@ app.post("/api/bookings", async (req, res) => {
   }
 });
 
-app.post("/api/bookings/manual", async (req, res) => {
-  try {
-    const record = await createManualBooking(req.body || {});
-    return res.status(201).json({
-      ok: true,
-      booking: record,
-      message: "Manual booking saved to accepted.",
-    });
-  } catch (error) {
-    return sendJsonError(res, error, "Server error while saving manual booking.");
+app.use((req, res, next) => {
+  if (req.path === "/Web_Admin_App" || req.path.startsWith("/Web_Admin_App/")) {
+    return res.status(404).type("text/plain").send(`Not found: ${req.method} ${req.path}`);
   }
+
+  return next();
 });
 
 app.use(

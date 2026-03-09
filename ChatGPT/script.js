@@ -226,7 +226,7 @@ const preferredDateErrorEl = document.getElementById("preferredDateError");
 const bookingSuccessEl = document.getElementById("bookingSuccess");
 const bookingSuccessTextEl = document.getElementById("bookingSuccessText");
 const bookingSummaryEl = document.getElementById("bookingSummary");
-const editBookingBtn = document.getElementById("editBookingBtn");
+const newBookingBtn = document.getElementById("newBookingBtn");
 const servicePills = Array.from(document.querySelectorAll(".service-pill[data-service-choice]"));
 const API_BASE_STORAGE_KEY = "sl-auto-api-base";
 const API_SERVICE_NAME = "sl-auto-booking-api";
@@ -491,18 +491,18 @@ const loadBookingCalendarAvailability = async () => {
     bookingCalendarAvailability.resolvedApiBase = apiResolution.baseUrl;
     persistBookingApiBase(apiResolution.baseUrl);
 
-    const response = await fetch(`${apiResolution.baseUrl}/api/bookings`);
+    const response = await fetch(`${apiResolution.baseUrl}/api/booking-availability`);
     if (!response.ok) return;
 
     const payload = await response.json();
-    const bookings = Array.isArray(payload?.bookings) ? payload.bookings : [];
     const nextCounts = new Map();
 
-    bookings.forEach((booking) => {
-      const dateValue = String(booking?.preferredDate || "").trim();
-      const status = String(booking?.status || "").trim().toLowerCase();
-      if (!dateValue || booking?.archivedAt || status === "rejected") return;
-      nextCounts.set(dateValue, (nextCounts.get(dateValue) || 0) + 1);
+    const availability = Array.isArray(payload?.availability) ? payload.availability : [];
+    availability.forEach((entry) => {
+      const dateValue = String(entry?.date || "").trim();
+      const count = Number(entry?.count || 0);
+      if (!dateValue || count <= 0) return;
+      nextCounts.set(dateValue, count);
     });
 
     bookingCalendarAvailability.countsByDate = nextCounts;
@@ -760,8 +760,6 @@ if (serviceTypeEl && servicePills.length) {
 if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl) {
   const bookingPhoneInput = bookingForm.querySelector('input[name="phone"]');
   const bookingSubmitBtn = bookingForm.querySelector('button[type="submit"]');
-  let currentBookingId = "";
-  let isEditingBooking = false;
 
   const formatPhoneInputValue = (value) => {
     const digits = String(value || "").replace(/\D/g, "").slice(0, 10);
@@ -808,10 +806,7 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
     return item;
   };
 
-  const getSubmitLabel = (isSaving) => {
-    if (isSaving) return isEditingBooking ? "Saving changes..." : "Submitting...";
-    return isEditingBooking ? "Save changes" : "Submit booking request";
-  };
+  const getSubmitLabel = (isSaving) => (isSaving ? "Submitting..." : "Submit booking request");
 
   const syncSubmitButton = (isSaving = false) => {
     if (!bookingSubmitBtn) return;
@@ -861,23 +856,19 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
       website: String(formData.get("website") || "").trim(),
     };
 
-    const isUpdateRequest = Boolean(isEditingBooking && currentBookingId);
     syncSubmitButton(true);
 
     let resolvedApiBase = getBookingApiBase();
     let attemptedApiBases = [resolvedApiBase];
+    let responsePayload = null;
 
     try {
       const apiResolution = await resolveWorkingBookingApiBase(resolvedApiBase);
       resolvedApiBase = apiResolution.baseUrl;
       attemptedApiBases = apiResolution.attemptedBases.length ? apiResolution.attemptedBases : attemptedApiBases;
 
-      const requestUrl = isUpdateRequest
-        ? `${resolvedApiBase}/api/bookings/${encodeURIComponent(currentBookingId)}`
-        : `${resolvedApiBase}/api/bookings`;
-
-      const response = await fetch(requestUrl, {
-        method: isUpdateRequest ? "PATCH" : "POST",
+      const response = await fetch(`${resolvedApiBase}/api/bookings`, {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
@@ -895,15 +886,11 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
         const errorText =
           payload && Array.isArray(payload.details) && payload.details.length
             ? payload.details.join(" ")
-            : (payload && payload.error) ||
-              (isUpdateRequest
-                ? "Could not update booking request on server."
-                : "Could not save booking request to server.");
+            : (payload && payload.error) || "Could not save booking request to server.";
         throw new Error(errorText);
       }
 
-      currentBookingId = payload.id || (payload.booking && payload.booking.id) || currentBookingId;
-      isEditingBooking = false;
+      responsePayload = payload;
       persistBookingApiBase(resolvedApiBase);
       bookingCalendarAvailability.resolvedApiBase = resolvedApiBase;
       resetBookingCalendarAvailability();
@@ -918,12 +905,8 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
     const urgencyFlag = /urgent|drivability/i.test(details.urgency);
 
     bookingSuccessTextEl.textContent = urgencyFlag
-      ? isUpdateRequest
-        ? "Your booking request was updated. For urgent drivability concerns, call the shop now so the team can advise on next steps right away."
-        : "Thanks. For urgent drivability concerns, call the shop now so the team can advise on next steps right away."
-      : isUpdateRequest
-        ? "Your booking request was updated. The shop can confirm a time by your preferred contact method."
-        : "Thanks. Your booking request is ready for follow-up. The shop can confirm a time by your preferred contact method.";
+      ? "Thanks. For urgent drivability concerns, call the shop now so the team can advise on next steps right away."
+      : "Thanks. Your booking request is ready for follow-up. The shop can confirm a time by your preferred contact method.";
 
     bookingSummaryEl.textContent = "";
     [
@@ -953,7 +936,7 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
 
     try {
       const stored = {
-        id: currentBookingId,
+        id: responsePayload?.id || "",
         ...details,
         savedAt: new Date().toISOString(),
       };
@@ -965,9 +948,17 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
     syncSubmitButton(false);
   });
 
-  if (editBookingBtn) {
-    editBookingBtn.addEventListener("click", () => {
-      isEditingBooking = Boolean(currentBookingId);
+  if (newBookingBtn) {
+    newBookingBtn.addEventListener("click", () => {
+      bookingForm.reset();
+      if (bookingPhoneInput) {
+        bookingPhoneInput.value = formatPhoneInputValue("");
+      }
+      setActiveServicePill(serviceTypeEl ? serviceTypeEl.value : "");
+      syncPreferredDateDisplay();
+      setPreferredDateError("");
+      closePreferredDateCalendar();
+      resetBookingCalendarAvailability();
       bookingSuccessEl.hidden = true;
       bookingForm.hidden = false;
       syncSubmitButton(false);

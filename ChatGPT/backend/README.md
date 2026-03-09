@@ -6,15 +6,14 @@ This folder is the backend for the `ChatGPT/` website frontend.
 
 - `POST /api/bookings` validates and saves booking requests
 - `GET /health` health check endpoint
-- `GET /api/bookings` loads bookings for the admin app
-- `PATCH /api/bookings/:id/status` updates booking status
-- `PATCH /api/bookings/:id/archive` archives or restores bookings
-- `DELETE /api/bookings/:id` permanently deletes bookings
+- `GET /api/booking-availability` returns date counts for the public booking calendar
 
-The API now has two runtime shapes that share the same booking logic:
+Admin reads, auth, and booking mutations now live in `ChatGPT/Web_Admin_App/server.mjs`.
+
+The booking logic now has two runtime shapes:
 
 - Local Express server in `ChatGPT/backend/src/server.js`
-- Netlify Functions in `/netlify/functions`
+- Standalone admin server in `ChatGPT/Web_Admin_App/server.mjs`
 
 ## Run locally
 
@@ -56,14 +55,15 @@ Production Netlify deploys intentionally reject file storage so bookings are not
    - `SUPABASE_TABLE=bookings`
 4. Optional: set `CORS_ORIGIN` to your production site URL
 
-After that, the same API routes work on Netlify without changing the frontend form or the admin client.
+After that, the public booking routes work without changing the frontend form, and the admin app can use the same
+Supabase-backed booking records from its own server.
 
 ## Where this fits in the project
 
 - Frontend pages: `ChatGPT/index.html`, `ChatGPT/booking.html`
 - Shared booking logic: `ChatGPT/backend/src/lib/booking-service.mjs`
-- Local Express API: `ChatGPT/backend/src/server.js`
-- Netlify API: `netlify/functions/*.mjs`
+- Public Express API: `ChatGPT/backend/src/server.js`
+- Admin web app + API: `ChatGPT/Web_Admin_App/server.mjs`
 
 ## Next upgrades (for production)
 
