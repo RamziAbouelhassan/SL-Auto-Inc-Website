@@ -370,14 +370,12 @@ const isLocalBookingEnvironment = (baseUrl) => {
 };
 const describeBookingConnectionError = async (baseUrl, error) => {
   const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
-  const genericMessage = error?.message || "Could not connect to booking API.";
-  const localHelpText =
-    "Start ChatGPT/backend with npm start, then retry this page or open the printed backend URL (usually http://localhost:3000/booking.html).";
+  const fallbackMessage =
+    "We could not send your booking request online right now. Please call the shop at (587) 228-3688.";
+  const genericMessage = error?.message || fallbackMessage;
 
   if (!normalizedBaseUrl) {
-    return isLocalBookingEnvironment("")
-      ? `Could not determine which booking API to use. ${localHelpText}`
-      : genericMessage;
+    return fallbackMessage;
   }
 
   try {
@@ -392,19 +390,13 @@ const describeBookingConnectionError = async (baseUrl, error) => {
     } else {
       const bodyText = await healthResponse.text();
       if (looksLikePreviewServer(bodyText)) {
-        return isLocalBookingEnvironment(normalizedBaseUrl)
-          ? `${normalizedBaseUrl} is a preview/static server, not the booking API. ${localHelpText}`
-          : `${normalizedBaseUrl} is a preview/static server, not the booking API.`;
+        return fallbackMessage;
       }
     }
 
-    return isLocalBookingEnvironment(normalizedBaseUrl)
-      ? `${normalizedBaseUrl} is responding, but it is not the SL Auto booking API. ${localHelpText}`
-      : `${normalizedBaseUrl} is responding, but it is not the SL Auto booking API.`;
+    return fallbackMessage;
   } catch (probeError) {
-    return isLocalBookingEnvironment(normalizedBaseUrl)
-      ? `Could not reach the booking API at ${normalizedBaseUrl}. ${localHelpText}`
-      : genericMessage;
+    return isLocalBookingEnvironment(normalizedBaseUrl) ? fallbackMessage : genericMessage;
   }
 };
 
@@ -917,10 +909,7 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
       resetBookingCalendarAvailability();
     } catch (error) {
       const message = await describeBookingConnectionError(resolvedApiBase, error);
-      const triedLabel = attemptedApiBases.length ? attemptedApiBases.join("\n- ") : resolvedApiBase;
-      window.alert(
-        `${message}\n\nTried booking API at:\n- ${triedLabel}`
-      );
+      window.alert(message);
       syncSubmitButton(false);
       return;
     }
