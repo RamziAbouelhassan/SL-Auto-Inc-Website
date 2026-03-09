@@ -1500,19 +1500,23 @@
                 <input class="text-input" type="text" name="username" value="${escapeHtml(editor.username)}" required />
               </label>
 
+              ${
+                editor.isNew
+                  ? `
               <label class="manual-form-span-two">
-                <span class="field-label">${editor.isNew ? "Password" : "New password"}</span>
+                <span class="field-label">Password</span>
                 ${renderPasswordField({
       name: "password",
       value: "",
-      placeholder: editor.isNew ? "At least 6 characters" : "Enter a new password",
+      placeholder: "At least 6 characters",
       autocomplete: "new-password",
-      required: editor.isNew,
+      required: true,
     })}
-                <span class="input-helper">
-                  ${escapeHtml(editor.isNew ? "Use at least 6 characters." : "Leave this blank to keep the current password.")}
-                </span>
+                <span class="input-helper">Use at least 6 characters.</span>
               </label>
+              `
+                  : ""
+              }
 
               <label>
                 <span class="field-label">Role</span>
@@ -3381,13 +3385,22 @@
             headers: getAuthHeaders({
               "Content-Type": "application/json",
             }),
-            body: JSON.stringify({
-              displayName: editor.displayName,
-              username: editor.username,
-              password: editor.password,
-              role: editor.role,
-              active: editor.active,
-            }),
+            body: JSON.stringify(
+              isNew
+                ? {
+                    displayName: editor.displayName,
+                    username: editor.username,
+                    password: editor.password,
+                    role: editor.role,
+                    active: editor.active,
+                  }
+                : {
+                    displayName: editor.displayName,
+                    username: editor.username,
+                    role: editor.role,
+                    active: editor.active,
+                  }
+            ),
           }
         );
         const payload = await parseResponse(response, "Could not save admin user.");
