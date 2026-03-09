@@ -895,7 +895,7 @@
 
   async function describeConnectionError(baseUrl, error) {
     const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
-    const genericMessage = error?.message || "Could not connect to booking API.";
+    const genericMessage = error?.message || "Could not reach the booking desk right now.";
 
     try {
       const healthResponse = await fetch(`${normalizedBaseUrl}/health`);
@@ -906,26 +906,12 @@
         if (healthResponse.ok && payload?.service === API_SERVICE_NAME) {
           return genericMessage;
         }
-      } else {
-        const bodyText = await healthResponse.text();
-        if (looksLikePreviewServer(bodyText)) {
-          return `${normalizedBaseUrl} is a preview/static server, not the booking API. Start ChatGPT/backend and use that port here instead.`;
-        }
       }
 
-      return `${normalizedBaseUrl} is responding, but it is not the SL Auto booking API. Start ChatGPT/backend and use that backend URL here.`;
+      return "This admin site is online, but booking data is not available right now. Refresh and try again.";
     } catch (_probeError) {
-      return `Could not reach the booking API at ${normalizedBaseUrl}. Start Web_Admin_App with npm start, then use that server URL here.`;
+      return "This admin site could not connect to booking data. Refresh and try again.";
     }
-  }
-
-  function looksLikePreviewServer(bodyText) {
-    const normalized = String(bodyText || "").toLowerCase();
-    return (
-      normalized.includes("___vscode_livepreview_injected_script") ||
-      normalized.includes("<title>file not found</title>") ||
-      normalized.includes("the file <b>")
-    );
   }
 
   function upsertBooking(booking) {
@@ -1303,19 +1289,6 @@
 
         <form class="auth-form" data-form="login">
           <label>
-            <span class="field-label">Admin server URL</span>
-            <input
-              class="text-input"
-              type="text"
-              name="apiBaseUrl"
-              value="${escapeHtml(state.apiBaseUrl)}"
-              placeholder="http://localhost:4310"
-              autocomplete="off"
-              required
-            />
-          </label>
-
-          <label>
             <span class="field-label">Username</span>
             <input
               class="text-input"
@@ -1343,7 +1316,6 @@
             <button class="primary-button" type="submit" ${state.isAuthenticating ? "disabled" : ""}>
               ${state.isAuthenticating ? "Signing in..." : "Sign in"}
             </button>
-            <button class="muted-button" type="button" data-action="login-localhost">Use localhost:4310</button>
           </div>
         </form>
       </section>
@@ -1670,40 +1642,6 @@
 
           <p class="muted-text">${lastUpdated}</p>
         </article>
-
-        <article class="panel top-connection-panel">
-          <div class="panel-heading">
-            <div>
-              <h2>API connection</h2>
-              <p>Defaults to localhost. Change it when you test against a phone or another machine.</p>
-            </div>
-          </div>
-
-          <form class="connection-form" data-form="connection">
-            <div>
-              <label class="field-label" for="apiBaseUrl">Backend URL</label>
-              <input
-                class="text-input"
-                id="apiBaseUrl"
-                name="apiBaseUrl"
-                type="text"
-                value="${escapeHtml(state.apiBaseUrl)}"
-                placeholder="http://localhost:4310"
-                autocomplete="off"
-              />
-            </div>
-
-            <div class="connection-actions">
-              <button class="primary-button" type="submit">${state.isLoading ? "Loading..." : "Save and reload"}</button>
-              <button class="muted-button" type="button" data-action="use-localhost">Use localhost:4310</button>
-            </div>
-
-            <p class="connection-note muted-text">
-              Run <span class="text-strong">npm start</span> in <span class="text-strong">ChatGPT/Web_Admin_App</span>,
-              then open that server URL.
-            </p>
-          </form>
-        </article>
       </section>
     `;
   }
@@ -1993,7 +1931,7 @@
     const hasResults = pendingBookings.length || acceptedBookings.length;
 
     return `
-      ${state.isLoading && state.bookings.length === 0 ? renderEmptyState("Loading bookings", "Pulling the latest requests from the booking API.") : ""}
+      ${state.isLoading && state.bookings.length === 0 ? renderEmptyState("Loading bookings", "Loading the latest booking requests.") : ""}
       ${empty ? renderEmptyState("No bookings yet", "Once requests arrive, pending and accepted work will show up here.") : ""}
       ${!empty ? `
         ${!hasResults && hasDeskFiltersApplied() ? renderEmptyState("No matches", "Try a different search or clear the current desk filter.") : ""}
@@ -2697,14 +2635,6 @@
         return;
       }
 
-      if (action === "login-localhost") {
-        event.preventDefault();
-        state.apiBaseUrl = `http://localhost:${DEFAULT_API_PORT}`;
-        window.localStorage.setItem(STORAGE_KEY, state.apiBaseUrl);
-        render();
-        return;
-      }
-
       if (action === "toggle-password") {
         event.preventDefault();
         const passwordField = actionButton.closest(".password-field");
@@ -2795,14 +2725,6 @@
         state.userEditor = readUserEditor(document.querySelector('[data-form="admin-user"]'));
         state.showUserForm = false;
         render();
-        return;
-      }
-
-      if (action === "use-localhost") {
-        event.preventDefault();
-        state.apiBaseUrl = `http://localhost:${DEFAULT_API_PORT}`;
-        window.localStorage.setItem(STORAGE_KEY, state.apiBaseUrl);
-        await loadBookings();
         return;
       }
 
@@ -3064,8 +2986,6 @@
     if (loginForm) {
       event.preventDefault();
       const formData = new FormData(loginForm);
-      state.apiBaseUrl = normalizeBaseUrl(formData.get("apiBaseUrl"));
-      window.localStorage.setItem(STORAGE_KEY, state.apiBaseUrl);
       await login(formData.get("username"), formData.get("password"));
       return;
     }
@@ -3291,14 +3211,6 @@
       return;
     }
 
-    const connectionForm = event.target.closest('[data-form="connection"]');
-    if (!connectionForm) return;
-
-    event.preventDefault();
-    const formData = new FormData(connectionForm);
-    state.apiBaseUrl = normalizeBaseUrl(formData.get("apiBaseUrl"));
-    window.localStorage.setItem(STORAGE_KEY, state.apiBaseUrl);
-    await loadBookings();
   }
 
   function escapeHtml(value) {
