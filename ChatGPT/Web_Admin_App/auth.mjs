@@ -74,7 +74,20 @@ const normalizeRole = (value) => {
 
 const generateId = (prefix) => `${prefix}_${Date.now()}_${randomBytes(4).toString("hex")}`;
 
-const generateBootstrapPassword = () => randomBytes(9).toString("base64url");
+const toPasswordNamePart = (value) => {
+  const normalized = String(value || "")
+    .replace(/[^a-z0-9]/gi, "")
+    .slice(0, 10);
+
+  if (!normalized) return "Staff";
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
+
+const generateBootstrapPassword = (username = "") => {
+  const namePart = toPasswordNamePart(username);
+  const numericSuffix = String((randomBytes(2).readUInt16BE(0) % 9000) + 1000);
+  return `SL${namePart}${numericSuffix}`;
+};
 
 const clean = (value) => String(value || "").trim();
 
@@ -460,7 +473,7 @@ const createBootstrapHead = async ({ logger, existingUsers = [] }) => {
   }
 
   const displayName = String(process.env.ADMIN_BOOTSTRAP_NAME || "Head Admin").trim() || "Head Admin";
-  const password = String(process.env.ADMIN_BOOTSTRAP_PASSWORD || generateBootstrapPassword());
+  const password = String(process.env.ADMIN_BOOTSTRAP_PASSWORD || generateBootstrapPassword(username));
   const timestamp = new Date().toISOString();
   const passwordRecord = await createPasswordRecord(password);
 
@@ -787,7 +800,7 @@ export const resetUserPassword = async (userId, actorUser = null) => {
   assertCanManageTargetUser(actorUser, user);
   assertCanManageRole(actorUser, user.role);
 
-  const temporaryPassword = generateBootstrapPassword();
+  const temporaryPassword = generateBootstrapPassword(user.username);
   const passwordRecord = await createPasswordRecord(temporaryPassword);
   user.passwordHash = passwordRecord.passwordHash;
   user.passwordSalt = passwordRecord.passwordSalt;
