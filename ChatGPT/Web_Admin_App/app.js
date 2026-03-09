@@ -106,6 +106,11 @@
     showRescheduleForm: false,
     showCalendarBookingDialog: false,
     calendarDialogBookingId: "",
+    showChangePassword: false,
+    isChangingPassword: false,
+    showTempPassword: false,
+    tempPasswordValue: "",
+    tempPasswordUser: "",
     sectionOpen: loadStoredSectionState(),
   };
 
@@ -394,6 +399,11 @@
     state.showUserForm = false;
     state.showCalendarBookingDialog = false;
     state.calendarDialogBookingId = "";
+    state.showChangePassword = false;
+    state.isChangingPassword = false;
+    state.showTempPassword = false;
+    state.tempPasswordValue = "";
+    state.tempPasswordUser = "";
     state.manualSuccessMessage = "";
     state.errorMessage = message;
     persistAuthToken("");
@@ -1305,11 +1315,11 @@
           <label>
             <span class="field-label">Password</span>
             ${renderPasswordField({
-              name: "password",
-              placeholder: "",
-              autocomplete: "current-password",
-              required: true,
-            })}
+      name: "password",
+      placeholder: "",
+      autocomplete: "current-password",
+      required: true,
+    })}
           </label>
 
           <div class="auth-form-actions">
@@ -1345,6 +1355,7 @@
           <div class="session-panel-badges">
             <span class="pill pill-blue">${escapeHtml(user.roleLabel || user.role || "Admin")}</span>
             ${!canManageBookings() ? '<span class="pill pill-gray">Read only</span>' : ""}
+            <button class="ghost-button" type="button" data-action="open-change-password">Change password</button>
           </div>
         </div>
       </section>
@@ -1367,11 +1378,11 @@
     const groupOrder = ["head", "access_manager", "manager", "viewer"];
     const userCards = state.users.length
       ? groupOrder
-          .filter((role) => Array.isArray(groupedUsers[role]) && groupedUsers[role].length)
-          .map((role) => {
-            const users = groupedUsers[role];
-            const roleLabel = users[0]?.roleLabel || getAdminRoleLabel(role);
-            return `
+        .filter((role) => Array.isArray(groupedUsers[role]) && groupedUsers[role].length)
+        .map((role) => {
+          const users = groupedUsers[role];
+          const roleLabel = users[0]?.roleLabel || getAdminRoleLabel(role);
+          return `
               <section class="team-role-group">
                 <div class="section-heading">
                   <div>
@@ -1381,9 +1392,9 @@
                 </div>
                 <div class="team-user-list">
                   ${users
-                    .map((user) => {
-                      const inactiveBadge = user.active ? "" : '<span class="badge badge-gray">Inactive</span>';
-                      return `
+              .map((user) => {
+                const inactiveBadge = user.active ? "" : '<span class="badge badge-gray">Inactive</span>';
+                return `
                         <article class="team-user-card">
                           <div class="team-user-copy">
                             <strong>${escapeHtml(user.displayName || user.username)}</strong>
@@ -1393,6 +1404,9 @@
                             <div class="team-user-controls">
                               <span class="badge badge-blue">${escapeHtml(user.roleLabel || user.role)}</span>
                               ${inactiveBadge}
+                              <button class="ghost-button" type="button" data-action="reset-user-password" data-user-id="${escapeHtml(user.id)}">
+                                Reset password
+                              </button>
                               <button class="ghost-button" type="button" data-action="edit-user" data-user-id="${escapeHtml(user.id)}">
                                 Edit access
                               </button>
@@ -1400,17 +1414,17 @@
                           </div>
                         </article>
                       `;
-                    })
-                    .join("")}
+              })
+              .join("")}
                 </div>
               </section>
             `;
-          })
-          .join("")
+        })
+        .join("")
       : renderEmptyState(
-          "No staff accounts yet",
-          "Create an access manager, manager, or viewer account so only logged-in staff can open this desk."
-        );
+        "No staff accounts yet",
+        "Create an access manager, manager, or viewer account so only logged-in staff can open this desk."
+      );
 
     return `
       <section class="panel team-panel">
@@ -1423,10 +1437,10 @@
           <span class="section-toggle-copy">
             <h2>Staff access</h2>
             <p>${escapeHtml(
-              canManageHeadUsers()
-                ? "Create accounts, promote staff, and keep viewer logins read-only."
-                : "You can manage staff access for everyone except the head admin account."
-            )}</p>
+      canManageHeadUsers()
+        ? "Create accounts, promote staff, and keep viewer logins read-only."
+        : "You can manage staff access for everyone except the head admin account."
+    )}</p>
           </span>
           <span class="section-toggle-meta">
             <span class="mini-count">${state.isLoadingUsers ? "..." : state.users.length}</span>
@@ -1434,9 +1448,8 @@
           </span>
         </button>
 
-        ${
-          isOpen
-            ? `
+        ${isOpen
+        ? `
         <div class="panel-heading">
           <div></div>
           <div class="modal-actions">
@@ -1449,8 +1462,8 @@
           ${userCards}
         </div>
         `
-            : ""
-        }
+        : ""
+      }
       </section>
     `;
   }
@@ -1490,12 +1503,12 @@
               <label class="manual-form-span-two">
                 <span class="field-label">${editor.isNew ? "Password" : "New password"}</span>
                 ${renderPasswordField({
-                  name: "password",
-                  value: "",
-                  placeholder: editor.isNew ? "At least 6 characters" : "Enter a new password",
-                  autocomplete: "new-password",
-                  required: editor.isNew,
-                })}
+      name: "password",
+      value: "",
+      placeholder: editor.isNew ? "At least 6 characters" : "Enter a new password",
+      autocomplete: "new-password",
+      required: editor.isNew,
+    })}
                 <span class="input-helper">
                   ${escapeHtml(editor.isNew ? "Use at least 6 characters." : "Leave this blank to keep the current password.")}
                 </span>
@@ -1520,6 +1533,91 @@
               </button>
             </div>
           </form>
+        </article>
+      </section>
+    `;
+  }
+
+  function renderChangePasswordDialog() {
+    return `
+      <section class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="change-password-title">
+        <article class="panel modal-dialog modal-dialog-compact">
+          <div class="panel-heading">
+            <div>
+              <h2 id="change-password-title">Change your password</h2>
+              <p>Enter your current password and choose a new one.</p>
+            </div>
+            <div class="modal-actions">
+              <button class="ghost-button modal-close" type="button" data-action="close-change-password">Close</button>
+            </div>
+          </div>
+
+          <form class="manual-form" data-form="change-password">
+            <div class="manual-form-grid">
+              <label class="manual-form-span-two">
+                <span class="field-label">Current password</span>
+                ${renderPasswordField({
+      name: "currentPassword",
+      placeholder: "Enter your current password",
+      autocomplete: "current-password",
+      required: true,
+    })}
+              </label>
+
+              <label class="manual-form-span-two">
+                <span class="field-label">New password</span>
+                ${renderPasswordField({
+      name: "newPassword",
+      placeholder: "At least 6 characters",
+      autocomplete: "new-password",
+      required: true,
+    })}
+              </label>
+
+              <label class="manual-form-span-two">
+                <span class="field-label">Confirm new password</span>
+                ${renderPasswordField({
+      name: "confirmPassword",
+      placeholder: "Type it again",
+      autocomplete: "new-password",
+      required: true,
+    })}
+              </label>
+            </div>
+
+            <div class="manual-form-actions">
+              <button class="primary-button" type="submit" ${state.isChangingPassword ? "disabled" : ""}>
+                ${state.isChangingPassword ? "Changing..." : "Change password"}
+              </button>
+            </div>
+          </form>
+        </article>
+      </section>
+    `;
+  }
+
+  function renderTempPasswordDialog() {
+    return `
+      <section class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="temp-password-title">
+        <article class="panel modal-dialog modal-dialog-compact">
+          <div class="panel-heading">
+            <div>
+              <h2 id="temp-password-title">Password reset</h2>
+              <p>A temporary password has been set for <strong>${escapeHtml(state.tempPasswordUser)}</strong>.</p>
+            </div>
+            <div class="modal-actions">
+              <button class="ghost-button modal-close" type="button" data-action="close-temp-password">Close</button>
+            </div>
+          </div>
+
+          <div class="temp-password-display">
+            <p class="field-label">Temporary password</p>
+            <div class="temp-password-row">
+              <code class="temp-password-value">${escapeHtml(state.tempPasswordValue)}</code>
+              <button class="ghost-button" type="button" data-action="copy-temp-password">Copy</button>
+            </div>
+            <span class="input-helper">Share this password with the staff member. They can change it after signing in.</span>
+          </div>
         </article>
       </section>
     `;
@@ -1565,6 +1663,8 @@
       ${state.showRescheduleForm ? renderRescheduleDialog() : ""}
       ${state.showUserForm ? renderUserFormDialog() : ""}
       ${state.showCalendarBookingDialog ? renderCalendarBookingDialog() : ""}
+      ${state.showChangePassword ? renderChangePasswordDialog() : ""}
+      ${state.showTempPassword ? renderTempPasswordDialog() : ""}
     `;
     syncHeroChrome();
 
@@ -1785,16 +1885,16 @@
   function renderRoleOptions(selectedRole) {
     const options = canManageHeadUsers()
       ? [
-          ["head", "Head admin"],
-          ["access_manager", "Access manager"],
-          ["manager", "Manager"],
-          ["viewer", "Viewer"],
-        ]
+        ["head", "Head admin"],
+        ["access_manager", "Access manager"],
+        ["manager", "Manager"],
+        ["viewer", "Viewer"],
+      ]
       : [
-          ["access_manager", "Access manager"],
-          ["manager", "Manager"],
-          ["viewer", "Viewer"],
-        ];
+        ["access_manager", "Access manager"],
+        ["manager", "Manager"],
+        ["viewer", "Viewer"],
+      ];
 
     return options
       .map(([value, label]) => {
@@ -1986,12 +2086,12 @@
       ${archivedBookings.length === 0
         ? renderEmptyState("No archived bookings", "Archive accepted or rejected bookings to move them out of the active workflow.")
         : renderBookingSection(
-            "archived-list",
-            "Archive list",
-            "Filtered records",
-            filteredBookings,
-            hasDeskFiltersApplied() ? "No archived bookings match the current search." : "No archived bookings for this filter."
-          )}
+          "archived-list",
+          "Archive list",
+          "Filtered records",
+          filteredBookings,
+          hasDeskFiltersApplied() ? "No archived bookings match the current search." : "No archived bookings for this filter."
+        )}
     `;
   }
 
@@ -2051,10 +2151,10 @@
         ${toggleButton}
 
         ${isOpen
-          ? (bookings.length === 0
-              ? renderEmptyState(title, emptyMessage)
-              : `<div class="booking-list">${bookings.map((booking) => renderBookingCard(booking)).join("")}</div>`)
-          : ""}
+        ? (bookings.length === 0
+          ? renderEmptyState(title, emptyMessage)
+          : `<div class="booking-list">${bookings.map((booking) => renderBookingCard(booking)).join("")}</div>`)
+        : ""}
       </article>
     `;
   }
@@ -2205,11 +2305,11 @@
                 </div>
 
                 ${agendaBookings.length
-                  ? `<div class="calendar-agenda-list">${agendaBookings
-                      .sort((left, right) => String(left.timeWindow || "").localeCompare(String(right.timeWindow || "")))
-                      .map(renderCalendarAgendaItem)
-                      .join("")}</div>`
-                  : renderEmptyState("Open day", "Pick another date or add a booking to start filling the calendar.")}
+        ? `<div class="calendar-agenda-list">${agendaBookings
+          .sort((left, right) => String(left.timeWindow || "").localeCompare(String(right.timeWindow || "")))
+          .map(renderCalendarAgendaItem)
+          .join("")}</div>`
+        : renderEmptyState("Open day", "Pick another date or add a booking to start filling the calendar.")}
               </section>
             </aside>
           </section>
@@ -2239,12 +2339,12 @@
         </span>
         <span class="calendar-day-events">
           ${day.bookings
-            .slice(0, 2)
-            .map((booking) => {
-              const status = getResolvedStatus(booking);
-              return `<span class="calendar-day-pill is-${status} ${isUrgent(booking) ? "is-urgent" : ""}">${escapeHtml(booking.name || booking.serviceType || "Booking")}</span>`;
-            })
-            .join("")}
+        .slice(0, 2)
+        .map((booking) => {
+          const status = getResolvedStatus(booking);
+          return `<span class="calendar-day-pill is-${status} ${isUrgent(booking) ? "is-urgent" : ""}">${escapeHtml(booking.name || booking.serviceType || "Booking")}</span>`;
+        })
+        .join("")}
           ${day.bookings.length > 2 ? `<span class="calendar-day-more">+${day.bookings.length - 2} more</span>` : ""}
         </span>
       </button>
@@ -2269,12 +2369,12 @@
             ${isUrgent(booking) ? '<span class="badge badge-red">Urgent</span>' : ""}
           </div>
           ${canManageBookings()
-            ? `
+        ? `
               <button class="ghost-button calendar-reschedule-button" type="button" data-action="reschedule" data-booking-id="${booking.id}">
                 Reschedule
               </button>
             `
-            : ""}
+        : ""}
         </div>
       </article>
     `;
@@ -2451,12 +2551,12 @@
                 Open in booking desk
               </button>
               ${canManageBookings()
-                ? `
+        ? `
                   <button class="muted-button" type="button" data-action="reschedule" data-booking-id="${escapeHtml(booking.id)}">
                     Reschedule
                   </button>
                 `
-                : ""}
+        : ""}
             </div>
           </div>
         </article>
@@ -2724,6 +2824,77 @@
         event.preventDefault();
         state.userEditor = readUserEditor(document.querySelector('[data-form="admin-user"]'));
         state.showUserForm = false;
+        render();
+        return;
+      }
+
+      if (action === "open-change-password") {
+        event.preventDefault();
+        state.showChangePassword = true;
+        state.errorMessage = "";
+        render();
+        return;
+      }
+
+      if (action === "close-change-password") {
+        event.preventDefault();
+        state.showChangePassword = false;
+        render();
+        return;
+      }
+
+      if (action === "close-temp-password") {
+        event.preventDefault();
+        state.showTempPassword = false;
+        state.tempPasswordValue = "";
+        state.tempPasswordUser = "";
+        render();
+        return;
+      }
+
+      if (action === "copy-temp-password") {
+        event.preventDefault();
+        try {
+          navigator.clipboard.writeText(state.tempPasswordValue);
+          actionButton.textContent = "Copied!";
+          setTimeout(() => { actionButton.textContent = "Copy"; }, 2000);
+        } catch (_e) {
+          // Clipboard not available
+        }
+        return;
+      }
+
+      if (action === "reset-user-password") {
+        event.preventDefault();
+        if (!canManageUsers()) {
+          state.errorMessage = "Only a head admin can change staff access.";
+          render();
+          return;
+        }
+        const targetUserId = actionButton.dataset.userId;
+        const targetUser = state.users.find((entry) => entry.id === targetUserId);
+        if (!targetUser) return;
+        const displayLabel = targetUser.displayName || targetUser.username;
+        if (!window.confirm(`Reset the password for ${displayLabel}? This will generate a new temporary password.`)) {
+          return;
+        }
+        state.errorMessage = "";
+        render();
+        try {
+          const response = await fetch(
+            `${normalizeBaseUrl(state.apiBaseUrl)}/api/admin/users/${encodeURIComponent(targetUserId)}/reset-password`,
+            {
+              method: "POST",
+              headers: getAuthHeaders({ "Content-Type": "application/json" }),
+            }
+          );
+          const payload = await parseResponse(response, "Could not reset password.");
+          state.tempPasswordValue = payload.temporaryPassword || "";
+          state.tempPasswordUser = displayLabel;
+          state.showTempPassword = true;
+        } catch (error) {
+          state.errorMessage = error?.message || "Could not reset password.";
+        }
         render();
         return;
       }
@@ -3118,6 +3289,55 @@
         state.errorMessage = error?.message || "Could not reschedule booking.";
       } finally {
         state.isSavingReschedule = false;
+        render();
+      }
+      return;
+    }
+
+    const changePasswordForm = event.target.closest('[data-form="change-password"]');
+    if (changePasswordForm) {
+      event.preventDefault();
+      const formData = new FormData(changePasswordForm);
+      const currentPassword = formData.get("currentPassword") || "";
+      const newPassword = formData.get("newPassword") || "";
+      const confirmPassword = formData.get("confirmPassword") || "";
+
+      if (newPassword.length < 6) {
+        state.errorMessage = "New password must be at least 6 characters.";
+        render();
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        state.errorMessage = "New password and confirmation do not match.";
+        render();
+        return;
+      }
+
+      state.isChangingPassword = true;
+      state.errorMessage = "";
+      render();
+
+      try {
+        const response = await fetch(
+          `${normalizeBaseUrl(state.apiBaseUrl)}/api/auth/change-password`,
+          {
+            method: "POST",
+            headers: getAuthHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify({ currentPassword, newPassword }),
+          }
+        );
+        await parseResponse(response, "Could not change password.");
+        state.showChangePassword = false;
+        state.manualSuccessMessage = "Password changed successfully.";
+        setTimeout(() => {
+          state.manualSuccessMessage = "";
+          render();
+        }, 4000);
+      } catch (error) {
+        state.errorMessage = error?.message || "Could not change password.";
+      } finally {
+        state.isChangingPassword = false;
         render();
       }
       return;

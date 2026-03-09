@@ -7,12 +7,14 @@ import {
   AdminAuthError,
   ADMIN_ROLES,
   authenticateUser,
+  changeOwnPassword,
   createAdminUser,
   ensureAdminUserStore,
   getAdminUserStorageDetails,
   getSessionTokenFromRequest,
   getSessionUser,
   listAdminUsers,
+  resetUserPassword,
   revokeSession,
   updateAdminUser,
 } from "./auth.mjs";
@@ -287,6 +289,28 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === "POST" && pathname === "/api/auth/change-password") {
+    const session = await requireSession(req, res);
+    if (!session) return;
+
+    try {
+      const payload = await readJsonBody(req);
+      const user = await changeOwnPassword({
+        userId: session.user.id,
+        currentPassword: payload.currentPassword,
+        newPassword: payload.newPassword,
+      });
+      sendJson(res, 200, {
+        ok: true,
+        user,
+        message: "Password changed successfully.",
+      });
+    } catch (error) {
+      sendJsonError(res, error, "Server error while changing password.");
+    }
+    return;
+  }
+
   if (req.method === "GET" && pathname === "/api/admin/users") {
     const session = await requireSession(req, res, "manageUsers");
     if (!session) return;
@@ -324,6 +348,25 @@ const server = http.createServer(async (req, res) => {
       });
     } catch (error) {
       sendJsonError(res, error, "Server error while creating admin user.");
+    }
+    return;
+  }
+
+  const adminResetMatch = pathname.match(/^\/api\/admin\/users\/([^/]+)\/reset-password$/);
+  if (req.method === "POST" && adminResetMatch) {
+    const session = await requireSession(req, res, "manageUsers");
+    if (!session) return;
+
+    try {
+      const result = await resetUserPassword(adminResetMatch[1], session.user);
+      sendJson(res, 200, {
+        ok: true,
+        user: result.user,
+        temporaryPassword: result.temporaryPassword,
+        message: "Password has been reset.",
+      });
+    } catch (error) {
+      sendJsonError(res, error, "Server error while resetting password.");
     }
     return;
   }

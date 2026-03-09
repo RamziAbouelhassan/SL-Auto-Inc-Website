@@ -738,3 +738,65 @@ export const updateAdminUser = async (userId, updates = {}) => {
 
   return sanitizeUser(user);
 };
+
+export const changeOwnPassword = async ({ userId, currentPassword, newPassword }) => {
+  if (!userId) {
+    throw new AdminAuthError(400, "User id is required.");
+  }
+
+  if (!String(currentPassword || "")) {
+    throw new AdminAuthError(400, "Current password is required.");
+  }
+
+  assertValidPassword(newPassword);
+
+  const store = await readStore();
+  const user = store.users.find((entry) => entry.id === userId);
+  if (!user) {
+    throw new AdminAuthError(404, "Admin user not found.");
+  }
+
+  if (user.active === false) {
+    throw new AdminAuthError(403, "This account has been deactivated.");
+  }
+
+  if (!(await verifyPassword(user, currentPassword))) {
+    throw new AdminAuthError(401, "Current password is incorrect.");
+  }
+
+  const passwordRecord = await createPasswordRecord(newPassword);
+  user.passwordHash = passwordRecord.passwordHash;
+  user.passwordSalt = passwordRecord.passwordSalt;
+  user.updatedAt = new Date().toISOString();
+
+  await writeStore(store);
+  return sanitizeUser(user);
+};
+
+export const resetUserPassword = async (userId, actorUser = null) => {
+  if (!userId) {
+    throw new AdminAuthError(400, "User id is required.");
+  }
+
+  const store = await readStore();
+  const user = store.users.find((entry) => entry.id === userId);
+  if (!user) {
+    throw new AdminAuthError(404, "Admin user not found.");
+  }
+
+  assertCanManageTargetUser(actorUser, user);
+  assertCanManageRole(actorUser, user.role);
+
+  const temporaryPassword = generateBootstrapPassword();
+  const passwordRecord = await createPasswordRecord(temporaryPassword);
+  user.passwordHash = passwordRecord.passwordHash;
+  user.passwordSalt = passwordRecord.passwordSalt;
+  user.updatedAt = new Date().toISOString();
+
+  await writeStore(store);
+
+  return {
+    user: sanitizeUser(user),
+    temporaryPassword,
+  };
+};
