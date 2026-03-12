@@ -224,9 +224,10 @@ const preferredDateMonthLabelEl = document.getElementById("preferredDateMonthLab
 const preferredDateCalendarGridEl = document.getElementById("preferredDateCalendarGrid");
 const preferredDateErrorEl = document.getElementById("preferredDateError");
 const bookingSuccessEl = document.getElementById("bookingSuccess");
+const bookingSuccessTitleEl = document.getElementById("bookingSuccessTitle");
 const bookingSuccessTextEl = document.getElementById("bookingSuccessText");
 const bookingSummaryEl = document.getElementById("bookingSummary");
-const newBookingBtn = document.getElementById("newBookingBtn");
+const editBookingBtn = document.getElementById("editBookingBtn");
 const servicePills = Array.from(document.querySelectorAll(".service-pill[data-service-choice]"));
 const API_BASE_STORAGE_KEY = "sl-auto-api-base";
 const API_SERVICE_NAME = "sl-auto-booking-api";
@@ -760,6 +761,12 @@ if (serviceTypeEl && servicePills.length) {
 if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl) {
   const bookingPhoneInput = bookingForm.querySelector('input[name="phone"]');
   const bookingSubmitBtn = bookingForm.querySelector('button[type="submit"]');
+  const bookingConsentInput = bookingForm.querySelector('input[name="consent"]');
+  const bookingEditorState = {
+    mode: "create",
+    bookingId: "",
+    lastSubmitted: null,
+  };
 
   const formatPhoneInputValue = (value) => {
     const digits = String(value || "").replace(/\D/g, "").slice(0, 10);
@@ -806,12 +813,73 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
     return item;
   };
 
-  const getSubmitLabel = (isSaving) => (isSaving ? "Submitting..." : "Submit booking request");
+  const setBookingEditorMode = (mode, bookingId = "") => {
+    bookingEditorState.mode = mode === "edit" ? "edit" : "create";
+    bookingEditorState.bookingId = bookingEditorState.mode === "edit" ? String(bookingId || "").trim() : "";
+  };
+
+  const rememberSubmittedBooking = (bookingId, details) => {
+    const normalizedBookingId = String(bookingId || "").trim();
+    bookingEditorState.lastSubmitted = {
+      id: normalizedBookingId,
+      details: {
+        ...details,
+      },
+    };
+    setBookingEditorMode("create");
+  };
+
+  const getSubmitLabel = (isSaving) => {
+    const editing = bookingEditorState.mode === "edit";
+    if (isSaving) return editing ? "Saving..." : "Submitting...";
+    return editing ? "Save booking changes" : "Submit booking request";
+  };
 
   const syncSubmitButton = (isSaving = false) => {
     if (!bookingSubmitBtn) return;
     bookingSubmitBtn.disabled = isSaving;
     bookingSubmitBtn.textContent = getSubmitLabel(isSaving);
+  };
+
+  const setFormFieldValue = (fieldName, value) => {
+    const field = bookingForm.elements.namedItem(fieldName);
+    if (!field || field instanceof RadioNodeList) return;
+    field.value = String(value || "");
+  };
+
+  const populateBookingForm = (details) => {
+    if (!details) return;
+
+    [
+      "name",
+      "phone",
+      "email",
+      "contactMethod",
+      "year",
+      "make",
+      "model",
+      "preferredDate",
+      "timeWindow",
+      "serviceType",
+      "concern",
+      "visitType",
+      "urgency",
+    ].forEach((fieldName) => {
+      setFormFieldValue(fieldName, details[fieldName]);
+    });
+
+    if (bookingPhoneInput) {
+      bookingPhoneInput.value = formatPhoneInputValue(bookingPhoneInput.value);
+    }
+
+    if (bookingConsentInput) {
+      bookingConsentInput.checked = true;
+    }
+
+    setActiveServicePill(serviceTypeEl ? serviceTypeEl.value : "");
+    syncPreferredDateDisplay();
+    setPreferredDateError("");
+    closePreferredDateCalendar();
   };
 
   const focusBookingForm = () => {
@@ -834,6 +902,16 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
     }
 
     const formData = new FormData(bookingForm);
+    const isEditingBooking = bookingEditorState.mode === "edit";
+    const editingBookingId = String(bookingEditorState.bookingId || bookingEditorState.lastSubmitted?.id || "").trim();
+
+    if (isEditingBooking && !editingBookingId) {
+      window.alert("We could not find the original booking to update. Please submit a new request instead.");
+      setBookingEditorMode("create");
+      syncSubmitButton(false);
+      return;
+    }
+
     const details = {
       name: String(formData.get("name") || "").trim(),
       phone: String(formData.get("phone") || "").trim(),
@@ -867,8 +945,11 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
       resolvedApiBase = apiResolution.baseUrl;
       attemptedApiBases = apiResolution.attemptedBases.length ? apiResolution.attemptedBases : attemptedApiBases;
 
-      const response = await fetch(`${resolvedApiBase}/api/bookings`, {
-        method: "POST",
+      const requestUrl = isEditingBooking
+        ? `${resolvedApiBase}/api/bookings/${encodeURIComponent(editingBookingId)}`
+        : `${resolvedApiBase}/api/bookings`;
+      const response = await fetch(requestUrl, {
+        method: isEditingBooking ? "PATCH" : "POST",
         headers: {
           "Content-Type": "application/json",
         },
@@ -904,9 +985,16 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
     const vehicleLabel = [details.year, details.make, details.model].filter(Boolean).join(" ");
     const urgencyFlag = /urgent|drivability/i.test(details.urgency);
 
+    if (bookingSuccessTitleEl) {
+      bookingSuccessTitleEl.textContent = isEditingBooking ? "Booking request updated" : "Booking request captured";
+    }
     bookingSuccessTextEl.textContent = urgencyFlag
-      ? "Thanks. For urgent drivability concerns, call the shop now so the team can advise on next steps right away."
-      : "Thanks. Your booking request is ready for follow-up. The shop can confirm a time by your preferred contact method.";
+      ? isEditingBooking
+        ? "Your booking request was updated. For urgent drivability concerns, call the shop now so the team can advise on next steps right away."
+        : "Thanks. For urgent drivability concerns, call the shop now so the team can advise on next steps right away."
+      : isEditingBooking
+        ? "Your booking request has been updated. The shop can confirm a time by your preferred contact method."
+        : "Thanks. Your booking request is ready for follow-up. The shop can confirm a time by your preferred contact method.";
 
     bookingSummaryEl.textContent = "";
     [
@@ -935,8 +1023,10 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
     bookingSuccessEl.scrollIntoView({ behavior: "smooth", block: "start" });
 
     try {
+      const savedBookingId = String(responsePayload?.booking?.id || responsePayload?.id || editingBookingId || "").trim();
+      rememberSubmittedBooking(savedBookingId, details);
       const stored = {
-        id: responsePayload?.id || "",
+        id: savedBookingId,
         ...details,
         savedAt: new Date().toISOString(),
       };
@@ -948,16 +1038,16 @@ if (bookingForm && bookingSuccessEl && bookingSummaryEl && bookingSuccessTextEl)
     syncSubmitButton(false);
   });
 
-  if (newBookingBtn) {
-    newBookingBtn.addEventListener("click", () => {
-      bookingForm.reset();
-      if (bookingPhoneInput) {
-        bookingPhoneInput.value = formatPhoneInputValue("");
+  if (editBookingBtn) {
+    editBookingBtn.addEventListener("click", () => {
+      const lastSubmittedBooking = bookingEditorState.lastSubmitted;
+      if (!lastSubmittedBooking?.id || !lastSubmittedBooking.details) {
+        window.alert("We could not load the last booking to edit.");
+        return;
       }
-      setActiveServicePill(serviceTypeEl ? serviceTypeEl.value : "");
-      syncPreferredDateDisplay();
-      setPreferredDateError("");
-      closePreferredDateCalendar();
+
+      populateBookingForm(lastSubmittedBooking.details);
+      setBookingEditorMode("edit", lastSubmittedBooking.id);
       resetBookingCalendarAvailability();
       bookingSuccessEl.hidden = true;
       bookingForm.hidden = false;

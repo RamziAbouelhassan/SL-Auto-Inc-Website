@@ -9,6 +9,7 @@ import {
   createBooking,
   getStorageDetails,
   listBookings,
+  updateBooking,
 } from "./lib/booking-service.mjs";
 
 dotenv.config();
@@ -107,6 +108,19 @@ app.post("/api/bookings", async (req, res) => {
     });
   } catch (error) {
     return sendJsonError(res, error, "Server error while saving booking request.");
+  }
+});
+
+app.patch("/api/bookings/:id", async (req, res) => {
+  try {
+    const booking = await updateBooking(req.params.id, req.body || {});
+    return res.json({
+      ok: true,
+      booking,
+      message: "Booking request updated.",
+    });
+  } catch (error) {
+    return sendJsonError(res, error, "Server error while updating booking request.");
   }
 });
 
